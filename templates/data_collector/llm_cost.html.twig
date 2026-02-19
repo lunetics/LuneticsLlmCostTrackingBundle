@@ -1,0 +1,212 @@
+{% extends '@WebProfiler/Profiler/layout.html.twig' %}
+
+{% block toolbar %}
+    {% set totals = collector.totals %}
+    {% set currency = collector.currency %}
+    {% set thresholds = collector.costThresholds %}
+    {% set budgetWarning = collector.budgetWarning %}
+    {% set overBudget = budgetWarning is not null and totals.cost > budgetWarning %}
+
+    {% if totals.calls > 0 %}
+        {% set icon %}
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="1" x2="12" y2="23"></line>
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+            <span class="sf-toolbar-value">${{ '%0.4f'|format(totals.cost) }}</span>
+            <span class="sf-toolbar-info-piece-additional-detail">
+                <span class="sf-toolbar-label">{{ totals.calls }} call{{ totals.calls != 1 ? 's' }}</span>
+            </span>
+        {% endset %}
+
+        {% set text %}
+            <div class="sf-toolbar-info-piece">
+                <b>Total Cost</b>
+                <span class="sf-toolbar-status {{ _self.cost_class(totals.cost, thresholds, overBudget) }}">${{ '%0.6f'|format(totals.cost) }}</span>
+            </div>
+            {% if overBudget %}
+                <div class="sf-toolbar-info-piece">
+                    <b>Budget</b>
+                    <span class="sf-toolbar-status sf-toolbar-status-red">${{ '%0.4f'|format(budgetWarning) }} exceeded!</span>
+                </div>
+            {% endif %}
+            <div class="sf-toolbar-info-piece">
+                <b>Calls</b>
+                <span>{{ totals.calls }}</span>
+            </div>
+            <div class="sf-toolbar-info-piece">
+                <b>Input Tokens</b>
+                <span>{{ totals.input_tokens|number_format }}</span>
+            </div>
+            <div class="sf-toolbar-info-piece">
+                <b>Output Tokens</b>
+                <span>{{ totals.output_tokens|number_format }}</span>
+            </div>
+
+            {% for model_id, model in collector.byModel %}
+                <div class="sf-toolbar-info-piece">
+                    <b>{{ model.display_name }}</b>
+                    <span>{{ model.calls }}x &mdash; ${{ '%0.4f'|format(model.cost) }}</span>
+                </div>
+            {% endfor %}
+        {% endset %}
+
+        {{ include('@WebProfiler/Profiler/toolbar_item.html.twig', { 'link': true, 'status': overBudget ? 'red' : '' }) }}
+    {% endif %}
+{% endblock %}
+
+{% block menu %}
+    <span class="label">
+        <span class="icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="1" x2="12" y2="23"></line>
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+        </span>
+        <strong>LLM Costs</strong>
+        {% set totals = collector.totals %}
+        <span class="count">{{ totals.calls }}</span>
+    </span>
+{% endblock %}
+
+{% block panel %}
+    <h2>LLM Costs</h2>
+
+    {% set totals = collector.totals %}
+    {% set thresholds = collector.costThresholds %}
+    {% set budgetWarning = collector.budgetWarning %}
+    {% set overBudget = budgetWarning is not null and totals.cost > budgetWarning %}
+
+    {% if totals.calls == 0 %}
+        <div class="empty">
+            <p>No LLM calls were made during this request.</p>
+        </div>
+    {% else %}
+        {# Budget warning #}
+        {% if overBudget %}
+            <div class="notice notice-warning">
+                <strong>Budget exceeded!</strong>
+                This request cost ${{ '%0.6f'|format(totals.cost) }}, which exceeds the configured budget warning of ${{ '%0.4f'|format(budgetWarning) }}.
+            </div>
+        {% endif %}
+
+        {# Unconfigured model warnings #}
+        {% if collector.unconfiguredModels|length > 0 %}
+            <div class="notice notice-warning">
+                <strong>Unconfigured models detected:</strong>
+                {{ collector.unconfiguredModels|join(', ') }}.
+                Tokens are tracked but costs show as $0.00. Add pricing in <code>lunetics_llm_cost_tracking.models</code>.
+            </div>
+        {% endif %}
+
+        {# Top metrics #}
+        <section class="metrics">
+            <div class="metric-group">
+                <div class="metric">
+                    <span class="value">${{ '%0.6f'|format(totals.cost) }}</span>
+                    <span class="label">Total Cost</span>
+                </div>
+                <div class="metric">
+                    <span class="value">{{ totals.calls }}</span>
+                    <span class="label">Total Calls</span>
+                </div>
+            </div>
+            <div class="metric-divider"></div>
+            <div class="metric-group">
+                <div class="metric">
+                    <span class="value">{{ totals.input_tokens|number_format }}</span>
+                    <span class="label">Input Tokens</span>
+                </div>
+                <div class="metric">
+                    <span class="value">{{ totals.output_tokens|number_format }}</span>
+                    <span class="label">Output Tokens</span>
+                </div>
+            </div>
+        </section>
+
+        {# Per-model aggregation #}
+        <h3>Per-Model Summary</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Model</th>
+                    <th>Provider</th>
+                    <th class="text-right">Calls</th>
+                    <th class="text-right">Input Tokens</th>
+                    <th class="text-right">Output Tokens</th>
+                    <th class="text-right">Total Tokens</th>
+                    <th class="text-right">Cost</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for model_id, model in collector.byModel %}
+                    <tr>
+                        <td>{{ model.display_name }}</td>
+                        <td>{{ model.provider }}</td>
+                        <td class="text-right">{{ model.calls }}</td>
+                        <td class="text-right">{{ model.input_tokens|number_format }}</td>
+                        <td class="text-right">{{ model.output_tokens|number_format }}</td>
+                        <td class="text-right">{{ model.total_tokens|number_format }}</td>
+                        <td class="text-right">
+                            <span class="{{ _self.cost_class(model.cost, thresholds) }}">${{ '%0.6f'|format(model.cost) }}</span>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th colspan="2">Total</th>
+                    <th class="text-right">{{ totals.calls }}</th>
+                    <th class="text-right">{{ totals.input_tokens|number_format }}</th>
+                    <th class="text-right">{{ totals.output_tokens|number_format }}</th>
+                    <th class="text-right">{{ totals.total_tokens|number_format }}</th>
+                    <th class="text-right">${{ '%0.6f'|format(totals.cost) }}</th>
+                </tr>
+            </tfoot>
+        </table>
+
+        {# Per-call detail #}
+        <h3>Per-Call Detail</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Model</th>
+                    <th>Provider</th>
+                    <th class="text-right">Input</th>
+                    <th class="text-right">Output</th>
+                    <th class="text-right">Thinking</th>
+                    <th class="text-right">Cached</th>
+                    <th class="text-right">Cost</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for call in collector.calls %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ call.display_name }}</td>
+                        <td>{{ call.provider }}</td>
+                        <td class="text-right">{{ call.input_tokens|number_format }}</td>
+                        <td class="text-right">{{ call.output_tokens|number_format }}</td>
+                        <td class="text-right">{{ call.thinking_tokens > 0 ? call.thinking_tokens|number_format : '-' }}</td>
+                        <td class="text-right">{{ call.cached_tokens > 0 ? call.cached_tokens|number_format : '-' }}</td>
+                        <td class="text-right">
+                            <span class="{{ _self.cost_class(call.cost, thresholds) }}">${{ '%0.6f'|format(call.cost) }}</span>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+
+    <style>
+        .cost-low { color: var(--color-success); }
+        .cost-medium { color: var(--color-warning); }
+        .cost-high { color: var(--color-error); }
+        .text-right { text-align: right; }
+        .notice { padding: 10px 15px; margin-bottom: 15px; border-radius: 4px; }
+        .notice-warning { background: var(--color-warning-bg, #fff3cd); border: 1px solid var(--color-warning-border, #ffc107); color: var(--color-warning-text, #856404); }
+    </style>
+{% endblock %}
+
+{% macro cost_class(cost, thresholds, overBudget) %}{% apply spaceless %}{% if overBudget is defined and overBudget %}cost-high{% elseif cost < thresholds.low %}cost-low{% elseif cost < thresholds.medium %}cost-medium{% else %}cost-high{% endif %}{% endapply %}{% endmacro %}

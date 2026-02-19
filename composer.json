@@ -1,0 +1,46 @@
+{
+    "name": "lunetics/llm-cost-tracking-bundle",
+    "description": "Symfony bundle that tracks LLM API costs and displays them in the Web Debug Toolbar and Profiler",
+    "type": "symfony-bundle",
+    "license": "MIT",
+    "keywords": ["symfony", "llm", "cost", "tracking", "profiler", "toolbar", "ai"],
+    "authors": [
+        {
+            "name": "Lunetics",
+            "homepage": "https://github.com/lunetics"
+        }
+    ],
+    "require": {
+        "php": ">=8.2",
+        "symfony/framework-bundle": "^7.0|^8.0",
+        "symfony/http-kernel": "^7.0|^8.0",
+        "symfony/dependency-injection": "^7.0|^8.0",
+        "symfony/config": "^7.0|^8.0",
+        "symfony/ai-bundle": "^0.3|^0.4|^1.0",
+        "symfony/ai-platform": "^0.3|^0.4|^1.0",
+        "symfony/twig-bundle": "^7.0|^8.0"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.0",
+        "phpstan/phpstan": "^2.0",
+        "phpstan/phpstan-deprecation-rules": "^2.0",
+        "phpstan/phpstan-phpunit": "^2.0",
+        "phpstan/phpstan-strict-rules": "^2.0",
+        "phpstan/phpstan-symfony": "^2.0",
+        "phpunit/phpunit": "^11.0",
+        "symfony/web-profiler-bundle": "^7.0|^8.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Lunetics\\LlmCostTrackingBundle\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Lunetics\\LlmCostTrackingBundle\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

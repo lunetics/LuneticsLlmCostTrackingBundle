@@ -1,0 +1,22 @@
+includes:
+    - vendor/phpstan/phpstan-deprecation-rules/rules.neon
+    - vendor/phpstan/phpstan-phpunit/extension.neon
+    - vendor/phpstan/phpstan-phpunit/rules.neon
+    - vendor/phpstan/phpstan-strict-rules/rules.neon
+    - vendor/phpstan/phpstan-symfony/extension.neon
+    - vendor/phpstan/phpstan-symfony/rules.neon
+
+parameters:
+    level: 8
+    paths:
+        - src
+        - tests
+    tmpDir: /tmp/phpstan
+    ignoreErrors:
+        # Symfony's AbstractBundle::loadExtension() and ConfigurableExtensionInterface::loadExtension()
+        # declare $config as untyped `array`. Our override narrows it to `array<string, mixed>`,
+        # which is technically not contravariant but is safe because the framework always passes
+        # a processed config array.
+        -
+            identifier: method.childParameterType
+            path: src/LuneticsLlmCostTrackingBundle.php

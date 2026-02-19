@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  coding-standards:
+    name: Coding Standards
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - run: composer install --no-progress --prefer-dist
+
+      - run: vendor/bin/php-cs-fixer check --diff
+
+  static-analysis:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - run: composer install --no-progress --prefer-dist
+
+      - run: vendor/bin/phpstan analyse
+
+  tests:
+    name: Tests (PHP ${{ matrix.php }}, Symfony ${{ matrix.symfony }}${{ matrix.composer-flags && ', lowest' || '' }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - php: '8.2'
+            symfony: '7.2.*'
+          - php: '8.3'
+            symfony: '7.2.*'
+          - php: '8.4'
+            symfony: '7.2.*'
+          - php: '8.4'
+            symfony: '7.2.*'
+            composer-flags: '--prefer-lowest'
+          - php: '8.4'
+            symfony: '8.0.*'
+            allow-failure: true
+    continue-on-error: ${{ matrix.allow-failure || false }}
+    env:
+      SYMFONY_REQUIRE: ${{ matrix.symfony }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+
+      - run: composer global require --no-progress --no-scripts --no-plugins symfony/flex
+
+      - run: composer update --no-progress --prefer-dist ${{ matrix.composer-flags }}
+
+      - run: vendor/bin/phpunit
+
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: pcov
+
+      - run: composer install --no-progress --prefer-dist
+
+      - run: vendor/bin/phpunit --coverage-clover=coverage.xml
+
+      - uses: codecov/codecov-action@v4
+        if: ${{ env.CODECOV_TOKEN != '' }}
+        with:
+          file: coverage.xml
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
