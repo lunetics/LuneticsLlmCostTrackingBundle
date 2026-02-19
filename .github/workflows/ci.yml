@@ -44,13 +44,13 @@ jobs:
       matrix:
         include:
           - php: '8.2'
-            symfony: '7.2.*'
+            symfony: '7.4.*'
           - php: '8.3'
-            symfony: '7.2.*'
+            symfony: '7.4.*'
           - php: '8.4'
-            symfony: '7.2.*'
-          - php: '8.4'
-            symfony: '7.2.*'
+            symfony: '7.4.*'
+          - php: '8.2'
+            symfony: '7.4.*'
             composer-flags: '--prefer-lowest'
           - php: '8.4'
             symfony: '8.0.*'
@@ -67,6 +67,7 @@ jobs:
           coverage: none
 
       - run: composer global require --no-progress --no-scripts --no-plugins symfony/flex
+      - run: composer global config allow-plugins.symfony/flex true
 
       - run: composer update --no-progress --prefer-dist ${{ matrix.composer-flags }}
 

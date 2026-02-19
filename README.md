@@ -8,7 +8,7 @@ Hooks into [symfony/ai-bundle](https://github.com/symfony/ai-bundle)'s `Traceabl
 
 - PHP >= 8.2
 - Symfony >= 7.0
-- symfony/ai-bundle >= 0.3
+- symfony/ai-bundle >= 0.4
 
 ## Installation
 
