@@ -8,6 +8,7 @@ use Lunetics\LlmCostTrackingBundle\Model\ModelDefinition;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
+use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
 
 final class LuneticsLlmCostTrackingBundle extends AbstractBundle
@@ -35,6 +36,13 @@ final class LuneticsLlmCostTrackingBundle extends AbstractBundle
 
         $builder->getDefinition('lunetics_llm_cost_tracking.model_registry')
             ->replaceArgument('$models', $models);
+
+        if (true === ($config['dynamic_pricing']['enabled'] ?? true)) {
+            $builder->getDefinition('lunetics_llm_cost_tracking.pricing_provider')
+                ->replaceArgument('$ttl', $config['dynamic_pricing']['ttl']);
+            $builder->getDefinition('lunetics_llm_cost_tracking.model_registry')
+                ->replaceArgument('$dynamicPricing', new Reference('lunetics_llm_cost_tracking.pricing_provider'));
+        }
 
         $builder->getDefinition('lunetics_llm_cost_tracking.data_collector')
             ->replaceArgument('$currency', $config['currency'])
