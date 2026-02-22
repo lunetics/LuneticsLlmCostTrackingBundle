@@ -21,12 +21,14 @@ return static function (ContainerConfigurator $container): void {
 
     $services->set('lunetics_llm_cost_tracking.model_registry', ModelRegistry::class)
         ->arg('$models', abstract_arg('Populated by the bundle extension'))
-        ->arg('$dynamicPricing', null);
+        ->arg('$dynamicPricing', null)
+        ->arg('$logger', service('logger')->nullOnInvalid());
 
     $services->set('lunetics_llm_cost_tracking.pricing_provider', ModelsDevPricingProvider::class)
         ->arg('$httpClient', service('http_client'))
         ->arg('$cache', service('cache.app'))
-        ->arg('$ttl', abstract_arg('Populated by the bundle extension'));
+        ->arg('$ttl', abstract_arg('Populated by the bundle extension'))
+        ->arg('$logger', service('logger')->nullOnInvalid());
 
     $services->set('lunetics_llm_cost_tracking.update_pricing_command', UpdatePricingCommand::class)
         ->arg('$pricingProvider', service('lunetics_llm_cost_tracking.pricing_provider'))

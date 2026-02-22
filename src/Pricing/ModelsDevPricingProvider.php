@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Lunetics\LlmCostTrackingBundle\Pricing;
 
 use Lunetics\LlmCostTrackingBundle\Model\ModelDefinition;
+use Psr\Log\LoggerInterface;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -13,7 +14,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * Fetches and caches model pricing data from https://models.dev.
  * Prices are in USD per 1 million tokens, matching our ModelDefinition format.
  */
-final class ModelsDevPricingProvider
+final class ModelsDevPricingProvider implements RefreshablePricingProviderInterface
 {
     private const string API_URL = 'https://models.dev/api.json';
     private const string CACHE_KEY = 'lunetics_llm.models_dev_pricing';
@@ -22,6 +23,7 @@ final class ModelsDevPricingProvider
         private readonly HttpClientInterface $httpClient,
         private readonly CacheInterface $cache,
         private readonly int $ttl,
+        private readonly ?LoggerInterface $logger = null,
     ) {
     }
 
@@ -37,7 +39,18 @@ final class ModelsDevPricingProvider
         return $this->cache->get(self::CACHE_KEY, function (ItemInterface $item): array {
             $item->expiresAfter($this->ttl);
 
-            return $this->fetch();
+            try {
+                return $this->fetch();
+            } catch (\Throwable $e) {
+                // Cache the failure briefly to avoid hammering the API on outages.
+                // The command (invalidate + getModels) can force a retry.
+                $item->expiresAfter(60);
+                $this->logger?->warning('Failed to fetch dynamic LLM pricing from models.dev.', [
+                    'exception' => $e,
+                ]);
+
+                return [];
+            }
         });
     }
 
@@ -54,7 +67,10 @@ final class ModelsDevPricingProvider
      */
     private function fetch(): array
     {
-        $response = $this->httpClient->request('GET', self::API_URL);
+        $response = $this->httpClient->request('GET', self::API_URL, [
+            'timeout' => 10.0,
+            'max_duration' => 15.0,
+        ]);
         $data = $response->toArray();
 
         $models = [];
@@ -67,6 +83,12 @@ final class ModelsDevPricingProvider
 
             foreach ($providerData['models'] as $modelId => $modelData) {
                 if (!\is_array($modelData) || !isset($modelData['cost']['input'], $modelData['cost']['output'])) {
+                    continue;
+                }
+
+                // First provider to define a model ID wins; later providers (e.g. resellers)
+                // are skipped so canonical pricing takes precedence.
+                if (isset($models[(string) $modelId])) {
                     continue;
                 }
 

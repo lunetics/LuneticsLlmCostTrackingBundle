@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Lunetics\LlmCostTrackingBundle\Model;
 
-use Lunetics\LlmCostTrackingBundle\Pricing\ModelsDevPricingProvider;
+use Lunetics\LlmCostTrackingBundle\Pricing\PricingProviderInterface;
+use Psr\Log\LoggerInterface;
 
 final class ModelRegistry
 {
@@ -16,7 +17,8 @@ final class ModelRegistry
      */
     public function __construct(
         array $models = [],
-        private readonly ?ModelsDevPricingProvider $dynamicPricing = null,
+        private readonly ?PricingProviderInterface $dynamicPricing = null,
+        private readonly ?LoggerInterface $logger = null,
     ) {
         foreach ($models as $modelId => $definition) {
             $this->models[$modelId] = $definition;
@@ -32,17 +34,23 @@ final class ModelRegistry
         if (null !== $this->dynamicPricing) {
             try {
                 return $this->dynamicPricing->getModels()[$modelId] ?? null;
-            } catch (\Throwable) {
-                // Don't crash the profiler if models.dev is unreachable
+            } catch (\Throwable $e) {
+                $this->logger?->warning('Failed to fetch dynamic LLM pricing from models.dev.', [
+                    'exception' => $e,
+                ]);
             }
         }
 
         return null;
     }
 
+    /**
+     * Returns true only if the model is locally configured (user config or bundle defaults).
+     * For a dynamic-aware existence check, use get() !== null.
+     */
     public function has(string $modelId): bool
     {
-        return null !== $this->get($modelId);
+        return isset($this->models[$modelId]);
     }
 
     /**

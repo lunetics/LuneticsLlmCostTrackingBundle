@@ -42,6 +42,11 @@ final class LuneticsLlmCostTrackingBundle extends AbstractBundle
                 ->replaceArgument('$ttl', $config['dynamic_pricing']['ttl']);
             $builder->getDefinition('lunetics_llm_cost_tracking.model_registry')
                 ->replaceArgument('$dynamicPricing', new Reference('lunetics_llm_cost_tracking.pricing_provider'));
+        } else {
+            // Remove the provider and its dependent command — both have unresolvable abstract_args
+            // when dynamic pricing is disabled, which would break container compilation.
+            $builder->removeDefinition('lunetics_llm_cost_tracking.pricing_provider');
+            $builder->removeDefinition('lunetics_llm_cost_tracking.update_pricing_command');
         }
 
         $builder->getDefinition('lunetics_llm_cost_tracking.data_collector')

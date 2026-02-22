@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Lunetics\LlmCostTrackingBundle\Command;
 
-use Lunetics\LlmCostTrackingBundle\Pricing\ModelsDevPricingProvider;
+use Lunetics\LlmCostTrackingBundle\Pricing\RefreshablePricingProviderInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -18,7 +18,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 final class UpdatePricingCommand extends Command
 {
     public function __construct(
-        private readonly ModelsDevPricingProvider $pricingProvider,
+        private readonly RefreshablePricingProviderInterface $pricingProvider,
     ) {
         parent::__construct();
     }
