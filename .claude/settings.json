@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          { "type": "command", "command": "$HOME/.claude/hooks/php-lint.sh" },
+          { "type": "command", "command": "$HOME/.claude/hooks/php-cs-fixer.sh" },
+          { "type": "command", "command": "$HOME/.claude/hooks/phpstan.sh" }
+        ]
+      }
+    ]
+  }
+}
