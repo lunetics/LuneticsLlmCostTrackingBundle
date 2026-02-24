@@ -121,6 +121,22 @@ final class ModelRegistryTest extends TestCase
     }
 
     #[Test]
+    public function itMemoizesDynamicPricingResultWithinInstance(): void
+    {
+        $dynamicPricing = $this->createMock(PricingProviderInterface::class);
+        $dynamicPricing->expects($this->once())
+            ->method('getModels')
+            ->willReturn([]);
+
+        $registry = new ModelRegistry([], $dynamicPricing);
+
+        // Three lookups for different unknown models — getModels() must be called exactly once.
+        $registry->get('unknown-1');
+        $registry->get('unknown-2');
+        $registry->get('unknown-3');
+    }
+
+    #[Test]
     public function itAllDoesNotIncludeDynamicModels(): void
     {
         $localModel = new ModelDefinition('local-model', 'Local', 'TestProvider', 1.0, 1.0);

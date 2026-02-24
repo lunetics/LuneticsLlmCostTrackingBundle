@@ -32,6 +32,12 @@ final class UpdatePricingCommand extends Command
             $this->pricingProvider->invalidate();
             $models = $this->pricingProvider->getModels();
 
+            if (0 === \count($models)) {
+                $io->error('No models loaded from models.dev. The API may be unavailable or returned empty data.');
+
+                return Command::FAILURE;
+            }
+
             $io->success(\sprintf('Loaded pricing for %d models from models.dev.', \count($models)));
 
             if ($output->isVerbose()) {

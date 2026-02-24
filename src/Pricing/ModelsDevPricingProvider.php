@@ -35,7 +35,6 @@ final class ModelsDevPricingProvider implements RefreshablePricingProviderInterf
      */
     public function getModels(): array
     {
-        /* @var array<string, ModelDefinition> */
         return $this->cache->get(self::CACHE_KEY, function (ItemInterface $item): array {
             $item->expiresAfter($this->ttl);
 

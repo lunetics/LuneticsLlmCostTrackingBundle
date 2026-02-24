@@ -12,6 +12,9 @@ final class ModelRegistry
     /** @var array<string, ModelDefinition> */
     private array $models = [];
 
+    /** @var array<string, ModelDefinition>|null Memoized dynamic models for the lifetime of this instance. */
+    private ?array $dynamicCache = null;
+
     /**
      * @param array<string, ModelDefinition> $models user-configured and bundle-default models
      */
@@ -33,7 +36,9 @@ final class ModelRegistry
 
         if (null !== $this->dynamicPricing) {
             try {
-                return $this->dynamicPricing->getModels()[$modelId] ?? null;
+                $this->dynamicCache ??= $this->dynamicPricing->getModels();
+
+                return $this->dynamicCache[$modelId] ?? null;
             } catch (\Throwable $e) {
                 $this->logger?->warning('Failed to fetch dynamic LLM pricing from models.dev.', [
                     'exception' => $e,

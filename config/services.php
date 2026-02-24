@@ -2,10 +2,8 @@
 
 declare(strict_types=1);
 
-use Lunetics\LlmCostTrackingBundle\Command\UpdatePricingCommand;
 use Lunetics\LlmCostTrackingBundle\DataCollector\LlmCostCollector;
 use Lunetics\LlmCostTrackingBundle\Model\ModelRegistry;
-use Lunetics\LlmCostTrackingBundle\Pricing\ModelsDevPricingProvider;
 use Lunetics\LlmCostTrackingBundle\Service\CostCalculator;
 use Lunetics\LlmCostTrackingBundle\Service\CostCalculatorInterface;
 
@@ -23,16 +21,6 @@ return static function (ContainerConfigurator $container): void {
         ->arg('$models', abstract_arg('Populated by the bundle extension'))
         ->arg('$dynamicPricing', null)
         ->arg('$logger', service('logger')->nullOnInvalid());
-
-    $services->set('lunetics_llm_cost_tracking.pricing_provider', ModelsDevPricingProvider::class)
-        ->arg('$httpClient', service('http_client'))
-        ->arg('$cache', service('cache.app'))
-        ->arg('$ttl', abstract_arg('Populated by the bundle extension'))
-        ->arg('$logger', service('logger')->nullOnInvalid());
-
-    $services->set('lunetics_llm_cost_tracking.update_pricing_command', UpdatePricingCommand::class)
-        ->arg('$pricingProvider', service('lunetics_llm_cost_tracking.pricing_provider'))
-        ->tag('console.command');
 
     $services->set('lunetics_llm_cost_tracking.cost_calculator', CostCalculator::class);
 

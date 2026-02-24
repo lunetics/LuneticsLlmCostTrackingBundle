@@ -47,14 +47,26 @@ final class UpdatePricingCommandTest extends TestCase
     #[Test]
     public function itInvalidatesCacheBeforeFetching(): void
     {
+        $models = ['gpt-5' => new ModelDefinition('gpt-5', 'GPT-5', 'OpenAI', 1.25, 10.0)];
+
         $provider = $this->createMock(RefreshablePricingProviderInterface::class);
         $provider->expects($this->once())->method('invalidate');
-        $provider->method('getModels')->willReturn([]);
+        $provider->method('getModels')->willReturn($models);
 
         $tester = new CommandTester(new UpdatePricingCommand($provider));
         $tester->execute([]);
 
         self::assertSame(Command::SUCCESS, $tester->getStatusCode());
+    }
+
+    #[Test]
+    public function itReturnsFailureWhenNoModelsLoaded(): void
+    {
+        $tester = new CommandTester(new UpdatePricingCommand($this->createProvider([])));
+        $tester->execute([]);
+
+        self::assertSame(Command::FAILURE, $tester->getStatusCode());
+        self::assertStringContainsString('No models loaded', $tester->getDisplay());
     }
 
     #[Test]
