@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-02-25
+
+### Changed
+- Updated CHANGELOG with entries for v0.1.1 and v0.1.2
+
+## [0.1.2] - 2026-02-25
+
+### Fixed
+- Widened `symfony/ai-bundle` and `symfony/ai-platform` constraints from `^0.4|^1.0` to
+  `>=0.4.0 <2.0.0`. The caret operator on pre-1.0 versions locks the minor digit
+  (`^0.4` = `>=0.4.0 <0.5.0`), leaving a gap where 0.5.x through 0.9.x would not
+  satisfy the constraint and cause installation to fail.
+
+## [0.1.1] - 2026-02-25
+
+### Fixed
+- Fixed `cache:clear` crash in Symfony dev environment (`kernel.debug=true`). Symfony's
+  `XmlDumper` (used by `ContainerBuilderDebugDumpPass`) cannot serialize plain PHP object
+  instances as service constructor arguments. Replaced direct `new ModelDefinition(...)` and
+  `new CostThresholds(...)` instantiation with `Symfony\Component\DependencyInjection\Definition`
+  objects using named `setArgument()` calls, so the container compiler receives serializable
+  metadata rather than live object instances.
+
 ## [0.1.0] - 2026-02-25
 
 ### Added
@@ -23,5 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `lunetics:llm:update-pricing` console command
 - Readonly DTOs: `CostSnapshot`, `CostSummary`, `ModelAggregation`, `CallRecord`
 
-[Unreleased]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v0.1.2...v0.1.3
+[0.1.2]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v0.1.1...v0.1.2
+[0.1.1]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/lunetics/llm-cost-tracking-bundle/releases/tag/v0.1.0
