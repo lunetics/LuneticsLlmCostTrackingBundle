@@ -61,6 +61,14 @@ final class LuneticsLlmCostTrackingBundle extends AbstractBundle
                 ->replaceArgument('$dynamicPricing', new Reference('lunetics_llm_cost_tracking.pricing_provider'));
         }
 
+        if (true === $config['logging']['enabled']) {
+            $channel = $config['logging']['channel'];
+            $builder->getDefinition('lunetics_llm_cost_tracking.cost_logger_listener')
+                ->addTag('monolog.logger', ['channel' => $channel]);
+        } else {
+            $builder->removeDefinition('lunetics_llm_cost_tracking.cost_logger_listener');
+        }
+
         $builder->getDefinition('lunetics_llm_cost_tracking.data_collector')
             ->replaceArgument('$costThresholds', (new Definition(CostThresholds::class))
                 ->setArgument('$low', $config['cost_thresholds']['low'])

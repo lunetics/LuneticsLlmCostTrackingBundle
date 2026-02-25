@@ -157,6 +157,46 @@ final class LuneticsLlmCostTrackingExtensionTest extends TestCase
     }
 
     #[Test]
+    public function itRegistersLoggingListenerByDefaultWithAiChannel(): void
+    {
+        $container = $this->buildContainer([]);
+
+        self::assertTrue($container->hasDefinition('lunetics_llm_cost_tracking.cost_logger_listener'));
+
+        $definition = $container->getDefinition('lunetics_llm_cost_tracking.cost_logger_listener');
+
+        $monologTags = $definition->getTag('monolog.logger');
+        self::assertCount(1, $monologTags);
+        self::assertSame('ai', $monologTags[0]['channel']);
+
+        $eventTags = $definition->getTag('kernel.event_listener');
+        self::assertCount(2, $eventTags);
+        $registeredEvents = array_column($eventTags, 'event');
+        self::assertContains('kernel.terminate', $registeredEvents);
+        self::assertContains('console.terminate', $registeredEvents);
+    }
+
+    #[Test]
+    public function itRemovesLoggingListenerWhenDisabled(): void
+    {
+        $container = $this->buildContainer(['logging' => ['enabled' => false]]);
+
+        self::assertFalse($container->hasDefinition('lunetics_llm_cost_tracking.cost_logger_listener'));
+    }
+
+    #[Test]
+    public function itAppliesCustomLoggingChannel(): void
+    {
+        $container = $this->buildContainer(['logging' => ['channel' => 'llm']]);
+
+        $definition = $container->getDefinition('lunetics_llm_cost_tracking.cost_logger_listener');
+
+        $monologTags = $definition->getTag('monolog.logger');
+        self::assertCount(1, $monologTags);
+        self::assertSame('llm', $monologTags[0]['channel']);
+    }
+
+    #[Test]
     public function itSetsCustomCacheTtl(): void
     {
         $container = $this->buildContainer(['dynamic_pricing' => ['ttl' => 3600]]);
