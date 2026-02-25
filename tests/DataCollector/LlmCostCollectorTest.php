@@ -7,6 +7,7 @@ namespace Lunetics\LlmCostTrackingBundle\Tests\DataCollector;
 use Lunetics\LlmCostTrackingBundle\DataCollector\LlmCostCollector;
 use Lunetics\LlmCostTrackingBundle\Model\ModelDefinition;
 use Lunetics\LlmCostTrackingBundle\Model\ModelRegistry;
+use Lunetics\LlmCostTrackingBundle\Pricing\PricingProviderInterface;
 use Lunetics\LlmCostTrackingBundle\Service\CostCalculator;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -276,6 +277,40 @@ final class LlmCostCollectorTest extends TestCase
 
         $byModel = $collector->getByModel();
         self::assertCount(2, $byModel);
+    }
+
+    #[Test]
+    public function itCalculatesCostForModelFromDynamicPricingProvider(): void
+    {
+        $dynamicModel = new ModelDefinition('gpt-dynamic', 'GPT Dynamic', 'OpenAI', 2.00, 8.00);
+
+        $pricingProvider = $this->createMock(PricingProviderInterface::class);
+        $pricingProvider->method('getModels')->willReturn(['gpt-dynamic' => $dynamicModel]);
+
+        $registry = new ModelRegistry([], $pricingProvider);
+
+        $platform = $this->createPlatform([
+            $this->createCall('gpt-dynamic', new TokenUsage(1000, 500, null, null, null, null, null, null, 1500)),
+        ]);
+
+        $collector = new LlmCostCollector(
+            [$platform],
+            $registry,
+            new CostCalculator(),
+            ['low' => 0.01, 'medium' => 0.10],
+            null,
+        );
+        $collector->lateCollect();
+
+        // (1000/1M * 2.00) + (500/1M * 8.00) = 0.002 + 0.004 = 0.006
+        $totals = $collector->getTotals();
+        self::assertSame(0.006, $totals['cost']);
+
+        $calls = $collector->getCalls();
+        self::assertSame('GPT Dynamic', $calls[0]['display_name']);
+        self::assertSame('OpenAI', $calls[0]['provider']);
+
+        self::assertSame([], $collector->getUnconfiguredModels());
     }
 
     /**
