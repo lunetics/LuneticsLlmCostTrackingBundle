@@ -63,7 +63,8 @@ final class LuneticsLlmCostTrackingBundle extends AbstractBundle
 
         $builder->getDefinition('lunetics_llm_cost_tracking.data_collector')
             ->replaceArgument('$costThresholds', (new Definition(CostThresholds::class))
-                ->setArguments([$config['cost_thresholds']['low'], $config['cost_thresholds']['medium']]))
+                ->setArgument('$low', $config['cost_thresholds']['low'])
+                ->setArgument('$medium', $config['cost_thresholds']['medium']))
             ->replaceArgument('$budgetWarning', $config['budget_warning']);
     }
 
@@ -89,15 +90,13 @@ final class LuneticsLlmCostTrackingBundle extends AbstractBundle
         $definitions = [];
         foreach ($merged as $modelId => $data) {
             $definitions[$modelId] = (new Definition(ModelDefinition::class))
-                ->setArguments([
-                    $modelId,
-                    $data['display_name'],
-                    $data['provider'],
-                    (float) $data['input_price_per_million'],
-                    (float) $data['output_price_per_million'],
-                    isset($data['cached_input_price_per_million']) ? (float) $data['cached_input_price_per_million'] : null,
-                    isset($data['thinking_price_per_million']) ? (float) $data['thinking_price_per_million'] : null,
-                ]);
+                ->setArgument('$modelId', $modelId)
+                ->setArgument('$displayName', $data['display_name'])
+                ->setArgument('$provider', $data['provider'])
+                ->setArgument('$inputPricePerMillion', (float) $data['input_price_per_million'])
+                ->setArgument('$outputPricePerMillion', (float) $data['output_price_per_million'])
+                ->setArgument('$cachedInputPricePerMillion', isset($data['cached_input_price_per_million']) ? (float) $data['cached_input_price_per_million'] : null)
+                ->setArgument('$thinkingPricePerMillion', isset($data['thinking_price_per_million']) ? (float) $data['thinking_price_per_million'] : null);
         }
 
         return $definitions;

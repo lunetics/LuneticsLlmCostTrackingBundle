@@ -56,9 +56,8 @@ final class LuneticsLlmCostTrackingExtensionTest extends TestCase
         $thresholds = $definition->getArgument('$costThresholds');
         self::assertInstanceOf(Definition::class, $thresholds);
         self::assertSame(CostThresholds::class, $thresholds->getClass());
-        $args = $thresholds->getArguments();
-        self::assertSame(0.05, $args[0]); // $low
-        self::assertSame(0.50, $args[1]); // $medium
+        self::assertSame(0.05, $thresholds->getArgument('$low'));
+        self::assertSame(0.50, $thresholds->getArgument('$medium'));
     }
 
     #[Test]
@@ -116,9 +115,8 @@ final class LuneticsLlmCostTrackingExtensionTest extends TestCase
         $modelDef = $models['gpt-5'];
         self::assertInstanceOf(Definition::class, $modelDef);
         self::assertSame(ModelDefinition::class, $modelDef->getClass());
-        $args = $modelDef->getArguments();
-        self::assertSame('GPT-5 (discounted)', $args[1]); // $displayName
-        self::assertSame(0.50, $args[3]);                  // $inputPricePerMillion
+        self::assertSame('GPT-5 (discounted)', $modelDef->getArgument('$displayName'));
+        self::assertSame(0.50, $modelDef->getArgument('$inputPricePerMillion'));
     }
 
     #[Test]
