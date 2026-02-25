@@ -157,9 +157,17 @@ final class LuneticsLlmCostTrackingExtensionTest extends TestCase
     }
 
     #[Test]
-    public function itRegistersLoggingListenerByDefaultWithAiChannel(): void
+    public function itLoggingIsDisabledByDefault(): void
     {
         $container = $this->buildContainer([]);
+
+        self::assertFalse($container->hasDefinition('lunetics_llm_cost_tracking.cost_logger_listener'));
+    }
+
+    #[Test]
+    public function itRegistersLoggingListenerWhenExplicitlyEnabled(): void
+    {
+        $container = $this->buildContainer(['logging' => ['enabled' => true]]);
 
         self::assertTrue($container->hasDefinition('lunetics_llm_cost_tracking.cost_logger_listener'));
 
@@ -187,7 +195,7 @@ final class LuneticsLlmCostTrackingExtensionTest extends TestCase
     #[Test]
     public function itAppliesCustomLoggingChannel(): void
     {
-        $container = $this->buildContainer(['logging' => ['channel' => 'llm']]);
+        $container = $this->buildContainer(['logging' => ['enabled' => true, 'channel' => 'llm']]);
 
         $definition = $container->getDefinition('lunetics_llm_cost_tracking.cost_logger_listener');
 
