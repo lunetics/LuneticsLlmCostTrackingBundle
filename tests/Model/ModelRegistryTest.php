@@ -18,7 +18,6 @@ final class ModelRegistryTest extends TestCase
         $registry = new ModelRegistry();
 
         self::assertNull($registry->get('unknown-model'));
-        self::assertFalse($registry->has('unknown-model'));
     }
 
     #[Test]
@@ -34,7 +33,6 @@ final class ModelRegistryTest extends TestCase
 
         $registry = new ModelRegistry(['gpt-5' => $model]);
 
-        self::assertTrue($registry->has('gpt-5'));
         self::assertSame($model, $registry->get('gpt-5'));
     }
 
@@ -102,22 +100,6 @@ final class ModelRegistryTest extends TestCase
         $registry = new ModelRegistry([], $dynamicPricing);
 
         self::assertNull($registry->get('any-model'));
-    }
-
-    #[Test]
-    public function itHasDoesNotCheckDynamicPricing(): void
-    {
-        $dynamicModel = new ModelDefinition('dynamic-model', 'Dynamic', 'TestProvider', 2.0, 2.0);
-
-        $dynamicPricing = $this->createMock(PricingProviderInterface::class);
-        $dynamicPricing->method('getModels')->willReturn(['dynamic-model' => $dynamicModel]);
-
-        $registry = new ModelRegistry([], $dynamicPricing);
-
-        // get() finds the model via dynamic pricing
-        self::assertNotNull($registry->get('dynamic-model'));
-        // has() is local-only and must not trigger a dynamic lookup
-        self::assertFalse($registry->has('dynamic-model'));
     }
 
     #[Test]

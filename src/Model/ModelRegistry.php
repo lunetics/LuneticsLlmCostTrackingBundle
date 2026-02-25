@@ -50,15 +50,6 @@ final class ModelRegistry
     }
 
     /**
-     * Returns true only if the model is locally configured (user config or bundle defaults).
-     * For a dynamic-aware existence check, use get() !== null.
-     */
-    public function has(string $modelId): bool
-    {
-        return isset($this->models[$modelId]);
-    }
-
-    /**
      * Returns locally registered models (user config + bundle defaults).
      * Does not include models only available via dynamic pricing.
      *
