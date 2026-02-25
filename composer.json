@@ -4,22 +4,27 @@
     "type": "symfony-bundle",
     "license": "MIT",
     "keywords": ["symfony", "llm", "cost", "tracking", "profiler", "toolbar", "ai"],
+    "homepage": "https://github.com/lunetics/llm-cost-tracking-bundle",
     "authors": [
         {
             "name": "Lunetics",
             "homepage": "https://github.com/lunetics"
         }
     ],
+    "support": {
+        "issues": "https://github.com/lunetics/llm-cost-tracking-bundle/issues",
+        "source": "https://github.com/lunetics/llm-cost-tracking-bundle"
+    },
     "require": {
         "php": ">=8.2",
-        "symfony/framework-bundle": "^7.0|^8.0",
-        "symfony/http-kernel": "^7.0|^8.0",
-        "symfony/dependency-injection": "^7.0|^8.0",
-        "symfony/config": "^7.0|^8.0",
         "symfony/ai-bundle": "^0.4|^1.0",
         "symfony/ai-platform": "^0.4|^1.0",
         "symfony/cache": "^7.0|^8.0",
+        "symfony/config": "^7.0|^8.0",
+        "symfony/dependency-injection": "^7.0|^8.0",
+        "symfony/framework-bundle": "^7.0|^8.0",
         "symfony/http-client": "^7.0|^8.0",
+        "symfony/http-kernel": "^7.0|^8.0",
         "symfony/twig-bundle": "^7.0|^8.0"
     },
     "require-dev": {
@@ -42,7 +47,13 @@
             "Lunetics\\LlmCostTrackingBundle\\Tests\\": "tests/"
         }
     },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "1.0-dev"
+        }
+    },
     "config": {
+        "lock": false,
         "sort-packages": true,
         "audit": {
             "block-insecure": false
