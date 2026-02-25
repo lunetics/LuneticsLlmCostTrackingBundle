@@ -38,16 +38,6 @@ final class LlmCostCollectorTest extends TestCase
     }
 
     #[Test]
-    public function itReturnsConfiguredCurrency(): void
-    {
-        $collector = $this->createCollector([], currency: 'EUR');
-
-        $collector->lateCollect();
-
-        self::assertSame('EUR', $collector->getCurrency());
-    }
-
-    #[Test]
     public function itReturnsConfiguredThresholds(): void
     {
         $collector = $this->createCollector([], costThresholds: ['low' => 0.05, 'medium' => 0.50]);
@@ -294,7 +284,6 @@ final class LlmCostCollectorTest extends TestCase
      */
     private function createCollector(
         iterable $platforms,
-        string $currency = 'USD',
         array $costThresholds = ['low' => 0.01, 'medium' => 0.10],
         ?float $budgetWarning = null,
     ): LlmCostCollector {
@@ -307,7 +296,6 @@ final class LlmCostCollectorTest extends TestCase
             $platforms,
             $registry,
             new CostCalculator(),
-            $currency,
             $costThresholds,
             $budgetWarning,
         );

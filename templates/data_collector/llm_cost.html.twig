@@ -2,7 +2,6 @@
 
 {% block toolbar %}
     {% set totals = collector.totals %}
-    {% set currency = collector.currency %}
     {% set thresholds = collector.costThresholds %}
     {% set budgetWarning = collector.budgetWarning %}
     {% set overBudget = budgetWarning is not null and totals.cost > budgetWarning %}

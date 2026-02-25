@@ -30,7 +30,6 @@ return static function (ContainerConfigurator $container): void {
         ->arg('$platforms', tagged_iterator('ai.traceable_platform'))
         ->arg('$modelRegistry', service('lunetics_llm_cost_tracking.model_registry'))
         ->arg('$costCalculator', service('lunetics_llm_cost_tracking.cost_calculator'))
-        ->arg('$currency', abstract_arg('Populated by the bundle extension'))
         ->arg('$costThresholds', abstract_arg('Populated by the bundle extension'))
         ->arg('$budgetWarning', abstract_arg('Populated by the bundle extension'))
         ->tag('data_collector', [

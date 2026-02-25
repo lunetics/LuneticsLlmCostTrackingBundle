@@ -26,7 +26,6 @@ final class LlmCostCollector extends AbstractDataCollector implements LateDataCo
         iterable $platforms,
         private readonly ModelRegistry $modelRegistry,
         private readonly CostCalculatorInterface $costCalculator,
-        private readonly string $currency,
         private readonly array $costThresholds,
         private readonly ?float $budgetWarning,
     ) {
@@ -139,7 +138,6 @@ final class LlmCostCollector extends AbstractDataCollector implements LateDataCo
             'by_model' => $byModel,
             'totals' => $totals,
             'unconfigured_models' => array_keys($unconfiguredModels),
-            'currency' => $this->currency,
             'cost_thresholds' => $this->costThresholds,
             'budget_warning' => $this->budgetWarning,
         ];
@@ -172,11 +170,6 @@ final class LlmCostCollector extends AbstractDataCollector implements LateDataCo
     public function getUnconfiguredModels(): array
     {
         return $this->data['unconfigured_models'] ?? [];
-    }
-
-    public function getCurrency(): string
-    {
-        return $this->data['currency'] ?? 'USD';
     }
 
     /** @return array{low: float, medium: float} */

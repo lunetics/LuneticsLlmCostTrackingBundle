@@ -60,7 +60,6 @@ final class LuneticsLlmCostTrackingBundle extends AbstractBundle
         }
 
         $builder->getDefinition('lunetics_llm_cost_tracking.data_collector')
-            ->replaceArgument('$currency', $config['currency'])
             ->replaceArgument('$costThresholds', $config['cost_thresholds'])
             ->replaceArgument('$budgetWarning', $config['budget_warning']);
     }

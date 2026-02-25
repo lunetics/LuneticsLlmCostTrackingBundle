@@ -35,16 +35,6 @@ final class LuneticsLlmCostTrackingExtensionTest extends TestCase
     }
 
     #[Test]
-    public function itSetsCurrencyOnDataCollector(): void
-    {
-        $container = $this->buildContainer(['currency' => 'EUR']);
-
-        $definition = $container->getDefinition('lunetics_llm_cost_tracking.data_collector');
-
-        self::assertSame('EUR', $definition->getArgument('$currency'));
-    }
-
-    #[Test]
     public function itSetsCostThresholds(): void
     {
         $container = $this->buildContainer([
