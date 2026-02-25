@@ -23,7 +23,7 @@ return static function (ContainerConfigurator $container): void {
 
     $services->set('lunetics_llm_cost_tracking.model_registry', ModelRegistry::class)
         ->arg('$models', abstract_arg('Populated by the bundle extension'))
-        ->arg('$dynamicPricing', null)
+        ->arg('$pricingProvider', null)
         ->arg('$logger', service('logger')->nullOnInvalid());
 
     $services->set('lunetics_llm_cost_tracking.cost_calculator', CostCalculator::class);
