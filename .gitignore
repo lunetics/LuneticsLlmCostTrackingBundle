@@ -7,3 +7,4 @@
 .phpstan-baseline.neon
 CLAUDE.md
 .claude/
+.serena/
