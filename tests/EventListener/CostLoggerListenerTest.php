@@ -84,12 +84,12 @@ final class CostLoggerListenerTest extends TestCase
                     self::assertSame(1500, $context['total_tokens']);
                     self::assertSame(0, $context['thinking_tokens']);
                     self::assertSame(200, $context['cached_tokens']);
-                    self::assertSame(0.00625, $context['cost']);
+                    self::assertSame('0.00625000', $context['cost']);
                 } else {
                     // Summary log
                     self::assertStringContainsString('summary', $message);
                     self::assertSame(1, $context['calls']);
-                    self::assertSame(0.00625, $context['total_cost']);
+                    self::assertSame('0.00625000', $context['total_cost']);
                     self::assertSame(1000, $context['input_tokens']);
                     self::assertSame(500, $context['output_tokens']);
                     self::assertSame(1500, $context['total_tokens']);

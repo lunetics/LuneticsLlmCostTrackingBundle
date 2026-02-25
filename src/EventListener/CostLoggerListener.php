@@ -48,7 +48,7 @@ final class CostLoggerListener
                     'total_tokens' => $call->totalTokens,
                     'thinking_tokens' => $call->thinkingTokens,
                     'cached_tokens' => $call->cachedTokens,
-                    'cost' => $call->cost,
+                    'cost' => number_format($call->cost, 8, '.', ''),
                 ],
             );
         }
@@ -64,7 +64,7 @@ final class CostLoggerListener
             ),
             [
                 'calls' => $snapshot->totals->calls,
-                'total_cost' => $snapshot->totals->cost,
+                'total_cost' => number_format($snapshot->totals->cost, 8, '.', ''),
                 'input_tokens' => $snapshot->totals->inputTokens,
                 'output_tokens' => $snapshot->totals->outputTokens,
                 'total_tokens' => $snapshot->totals->totalTokens,
