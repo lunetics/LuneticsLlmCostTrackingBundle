@@ -228,6 +228,15 @@ final class LuneticsLlmCostTrackingExtensionTest extends TestCase
     }
 
     #[Test]
+    public function itThrowsExceptionWhenLoggingChannelIsEmpty(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('The "lunetics_llm_cost_tracking.logging.channel" value cannot be empty when logging is enabled.');
+
+        $this->buildContainer(['logging' => ['enabled' => true, 'channel' => '']]);
+    }
+
+    #[Test]
     public function itSetsCustomCacheTtl(): void
     {
         $container = $this->buildContainer(['dynamic_pricing' => ['ttl' => 3600]]);

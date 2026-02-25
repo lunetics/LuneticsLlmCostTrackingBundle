@@ -151,6 +151,27 @@ final class ModelsDevPricingProviderTest extends TestCase
     }
 
     #[Test]
+    public function itThrowsExceptionOnOversizedResponse(): void
+    {
+        $chunk = static::createStub(ChunkInterface::class);
+        $chunk->method('getContent')->willReturn(str_repeat('a', 5 * 1024 * 1024 + 1));
+
+        $response = static::createStub(ResponseInterface::class);
+        $stream = $this->createStream($chunk, $response);
+
+        $httpClient = $this->createMock(HttpClientInterface::class);
+        $httpClient->method('request')->willReturn($response);
+        $httpClient->method('stream')->willReturn($stream);
+
+        $provider = new ModelsDevPricingProvider($httpClient, new ArrayAdapter(), 86400);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('exceeded the 5242880 byte size limit');
+
+        $provider->fetchLive();
+    }
+
+    #[Test]
     public function itDoesNotRetryImmediatelyAfterFetchFailure(): void
     {
         $httpClient = $this->createMock(HttpClientInterface::class);

@@ -42,6 +42,36 @@ final class SnapshotPricingProviderTest extends TestCase
     }
 
     #[Test]
+    public function itLogsErrorWhenFileGetContentsReturnsFalse(): void
+    {
+        if (!\in_array('fail', stream_get_wrappers(), true)) {
+            stream_wrapper_register('fail', new class {
+                public mixed $context;
+                public function stream_open(): bool { return false; }
+                public function url_stat(): array { return ['mode' => 0100644]; }
+            }::class);
+        }
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->once())
+            ->method('error')
+            ->with('Failed to read pricing snapshot file.', self::arrayHasKey('path'));
+
+        $provider = new SnapshotPricingProvider('fail://test', $logger);
+
+        set_error_handler(static fn() => true);
+        try {
+            $models = $provider->getModels();
+            self::assertSame([], $models);
+        } finally {
+            restore_error_handler();
+            if (\in_array('fail', stream_get_wrappers(), true)) {
+                stream_wrapper_unregister('fail');
+            }
+        }
+    }
+
+    #[Test]
     public function itMemoizesResult(): void
     {
         // Write a temp file, load it, delete it, then verify the second call

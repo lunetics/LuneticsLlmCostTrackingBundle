@@ -83,6 +83,21 @@ final class UpdatePricingCommandTest extends TestCase
         self::assertStringContainsString('Failed', $tester->getDisplay());
     }
 
+    #[Test]
+    public function itShowsExceptionTraceInVeryVerboseMode(): void
+    {
+        $provider = $this->createMock(RefreshablePricingProviderInterface::class);
+        $provider->method('fetchLive')->willThrowException(new \RuntimeException('Connection refused trace'));
+
+        $tester = new CommandTester(new UpdatePricingCommand($provider));
+        $tester->execute([], ['verbosity' => OutputInterface::VERBOSITY_VERY_VERBOSE]);
+
+        self::assertSame(Command::FAILURE, $tester->getStatusCode());
+        self::assertStringContainsString('Connection refused trace', $tester->getDisplay());
+        // In very verbose mode, the exception trace is cast to string and outputted.
+        self::assertStringContainsString('RuntimeException: Connection refused trace', $tester->getDisplay());
+    }
+
     /** @param array<string, ModelDefinition> $models */
     private function createProvider(array $models): RefreshablePricingProviderInterface
     {
