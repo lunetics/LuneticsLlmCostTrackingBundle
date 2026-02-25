@@ -172,6 +172,27 @@ final class ModelsDevPricingProviderTest extends TestCase
     }
 
     #[Test]
+    public function itGetModelsSwallowsOversizedResponseAndReturnsEmpty(): void
+    {
+        // fetchLive() re-throws on an oversized response; getModels() must swallow it
+        // and return [] with a short negative-cache TTL (same as any other fetch failure).
+        $chunk = static::createStub(ChunkInterface::class);
+        $chunk->method('getContent')->willReturn(str_repeat('a', 5 * 1024 * 1024 + 1));
+
+        $response = static::createStub(ResponseInterface::class);
+        $stream = $this->createStream($chunk, $response);
+
+        $httpClient = $this->createMock(HttpClientInterface::class);
+        $httpClient->expects($this->once())->method('request')->willReturn($response);
+        $httpClient->method('stream')->willReturn($stream);
+
+        $provider = new ModelsDevPricingProvider($httpClient, new ArrayAdapter(), 86400);
+
+        self::assertSame([], $provider->getModels());
+        $provider->getModels(); // must hit negative cache, not re-request
+    }
+
+    #[Test]
     public function itDoesNotRetryImmediatelyAfterFetchFailure(): void
     {
         $httpClient = $this->createMock(HttpClientInterface::class);

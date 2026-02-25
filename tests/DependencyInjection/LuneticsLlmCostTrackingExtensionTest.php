@@ -174,8 +174,9 @@ final class LuneticsLlmCostTrackingExtensionTest extends TestCase
         self::assertInstanceOf(Reference::class, $pricingProviderArg);
         self::assertSame('lunetics_llm_cost_tracking.snapshot_provider', (string) $pricingProviderArg);
 
-        // The live API provider and its dependent command must be fully absent
+        // The live API provider, chain provider, and update command must be fully absent
         self::assertFalse($container->hasDefinition('lunetics_llm_cost_tracking.pricing_provider'));
+        self::assertFalse($container->hasDefinition('lunetics_llm_cost_tracking.chain_provider'));
         self::assertFalse($container->hasDefinition('lunetics_llm_cost_tracking.update_pricing_command'));
     }
 

@@ -45,11 +45,20 @@ final class SnapshotPricingProviderTest extends TestCase
     public function itLogsErrorWhenFileGetContentsReturnsFalse(): void
     {
         if (!\in_array('fail', stream_get_wrappers(), true)) {
-            stream_wrapper_register('fail', new class {
+            stream_wrapper_register('fail', (new class {
                 public mixed $context;
-                public function stream_open(): bool { return false; }
-                public function url_stat(): array { return ['mode' => 0100644]; }
-            }::class);
+
+                public function stream_open(): bool
+                {
+                    return false;
+                }
+
+                /** @return array<int|string, int> */
+                public function url_stat(): array
+                {
+                    return ['mode' => 0100644];
+                }
+            })::class);
         }
 
         $logger = $this->createMock(LoggerInterface::class);
@@ -59,10 +68,14 @@ final class SnapshotPricingProviderTest extends TestCase
 
         $provider = new SnapshotPricingProvider('fail://test', $logger);
 
-        set_error_handler(static fn() => true);
+        set_error_handler(static fn () => true);
         try {
             $models = $provider->getModels();
             self::assertSame([], $models);
+
+            // Second call must return the memoized empty array — logger must not fire again.
+            // The expects($this->once()) above enforces this implicitly.
+            self::assertSame([], $provider->getModels());
         } finally {
             restore_error_handler();
             if (\in_array('fail', stream_get_wrappers(), true)) {
@@ -120,6 +133,10 @@ final class SnapshotPricingProviderTest extends TestCase
 
             $provider = new SnapshotPricingProvider($tmpFile, $logger);
 
+            self::assertSame([], $provider->getModels());
+
+            // Second call must return the memoized empty array — logger must not fire again.
+            // The expects($this->once()) above enforces this implicitly.
             self::assertSame([], $provider->getModels());
         } finally {
             unlink($tmpFile);

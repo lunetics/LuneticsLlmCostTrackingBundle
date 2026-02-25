@@ -11,19 +11,37 @@ use PHPUnit\Framework\TestCase;
 final class ModelsDevResponseParserTest extends TestCase
 {
     #[Test]
-    public function itCannotBeInstantiated(): void
+    public function itHasAPrivateConstructor(): void
     {
         $reflection = new \ReflectionClass(ModelsDevResponseParser::class);
         $constructor = $reflection->getConstructor();
-        
+
         self::assertNotNull($constructor);
         self::assertTrue($constructor->isPrivate());
+    }
 
-        $constructor->setAccessible(true);
-        $instance = $reflection->newInstanceWithoutConstructor();
-        $constructor->invoke($instance);
-        
-        self::assertInstanceOf(ModelsDevResponseParser::class, $instance);
+    #[Test]
+    public function itReturnsEmptyArrayForEmptyInput(): void
+    {
+        self::assertSame([], ModelsDevResponseParser::parse('[]'));
+    }
+
+    #[Test]
+    public function itSkipsMetaEntry(): void
+    {
+        // The snapshot generator prepends a _meta entry via array_unshift.
+        // The parser must skip it (no 'name'/'models' keys) and still return real models.
+        $json = json_encode([
+            ['_meta' => ['generated_at' => '2026-02-26', 'source' => 'https://models.dev/api.json']],
+            ['name' => 'TestProvider', 'models' => [
+                'model-x' => ['cost' => ['input' => 1.0, 'output' => 2.0]],
+            ]],
+        ], \JSON_THROW_ON_ERROR);
+
+        $models = ModelsDevResponseParser::parse($json);
+
+        self::assertCount(1, $models);
+        self::assertArrayHasKey('model-x', $models);
     }
 
     #[Test]
@@ -37,7 +55,7 @@ final class ModelsDevResponseParserTest extends TestCase
                     'missing-input' => ['cost' => ['output' => 1.0]],
                     'valid' => ['cost' => ['input' => 1.0, 'output' => 2.0]],
                 ],
-            ]
+            ],
         ], \JSON_THROW_ON_ERROR);
 
         $models = ModelsDevResponseParser::parse($json);
