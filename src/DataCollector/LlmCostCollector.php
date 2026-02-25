@@ -143,6 +143,11 @@ final class LlmCostCollector extends AbstractDataCollector implements LateDataCo
         ];
     }
 
+    public function getName(): string
+    {
+        return 'lunetics_llm_cost_tracking';
+    }
+
     public static function getTemplate(): string
     {
         return '@LuneticsLlmCostTracking/data_collector/llm_cost.html.twig';
