@@ -5,3 +5,4 @@
 /.phpunit.result.cache
 .phpstan-baseline.neon
 CLAUDE.md
+.claude/
