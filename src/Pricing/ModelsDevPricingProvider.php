@@ -16,9 +16,9 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  */
 final class ModelsDevPricingProvider implements RefreshablePricingProviderInterface
 {
-    private const string API_URL = 'https://models.dev/api.json';
-    private const string CACHE_KEY = 'lunetics_llm.models_dev_pricing';
-    private const int MAX_RESPONSE_SIZE = 5 * 1024 * 1024; // 5 MB
+    private const API_URL = 'https://models.dev/api.json';
+    private const CACHE_KEY = 'lunetics_llm.models_dev_pricing';
+    private const MAX_RESPONSE_SIZE = 5 * 1024 * 1024; // 5 MB
 
     public function __construct(
         private readonly HttpClientInterface $httpClient,
