@@ -6,12 +6,14 @@ namespace Lunetics\LlmCostTrackingBundle\Tests\DependencyInjection;
 
 use Lunetics\LlmCostTrackingBundle\LuneticsLlmCostTrackingBundle;
 use Lunetics\LlmCostTrackingBundle\Model\CostThresholds;
+use Lunetics\LlmCostTrackingBundle\Model\ModelDefinition;
 use Lunetics\LlmCostTrackingBundle\Model\ModelRegistryInterface;
 use Lunetics\LlmCostTrackingBundle\Service\CostCalculatorInterface;
 use Lunetics\LlmCostTrackingBundle\Service\CostTrackerInterface;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Reference;
 
 final class LuneticsLlmCostTrackingExtensionTest extends TestCase
@@ -52,9 +54,10 @@ final class LuneticsLlmCostTrackingExtensionTest extends TestCase
         $definition = $container->getDefinition('lunetics_llm_cost_tracking.data_collector');
 
         $thresholds = $definition->getArgument('$costThresholds');
-        self::assertInstanceOf(CostThresholds::class, $thresholds);
-        self::assertSame(0.05, $thresholds->low);
-        self::assertSame(0.50, $thresholds->medium);
+        self::assertInstanceOf(Definition::class, $thresholds);
+        self::assertSame(CostThresholds::class, $thresholds->getClass());
+        self::assertSame(0.05, $thresholds->getArgument('$low'));
+        self::assertSame(0.50, $thresholds->getArgument('$medium'));
     }
 
     #[Test]
@@ -109,8 +112,11 @@ final class LuneticsLlmCostTrackingExtensionTest extends TestCase
         $definition = $container->getDefinition('lunetics_llm_cost_tracking.model_registry');
         $models = $definition->getArgument('$models');
 
-        self::assertSame('GPT-5 (discounted)', $models['gpt-5']->displayName);
-        self::assertSame(0.50, $models['gpt-5']->inputPricePerMillion);
+        $modelDef = $models['gpt-5'];
+        self::assertInstanceOf(Definition::class, $modelDef);
+        self::assertSame(ModelDefinition::class, $modelDef->getClass());
+        self::assertSame('GPT-5 (discounted)', $modelDef->getArgument('$displayName'));
+        self::assertSame(0.50, $modelDef->getArgument('$inputPricePerMillion'));
     }
 
     #[Test]
