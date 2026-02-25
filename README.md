@@ -48,12 +48,13 @@ The bundle resolves pricing for a model using the following priority order:
 
 This means most models work out of the box with no configuration. Your own entries always win.
 
+> **All prices are in USD.** The bundle defaults, the models.dev feed, and any prices you configure are all treated as USD. There is no currency conversion; the `$` prefix shown in the profiler is a literal dollar sign.
+
 ## Configuration
 
 ```yaml
 # config/packages/lunetics_llm_cost_tracking.yaml
 lunetics_llm_cost_tracking:
-    currency: 'USD'
     budget_warning: 0.50          # toolbar turns red when exceeded
     cost_thresholds:
         low: 0.01                 # below = green
