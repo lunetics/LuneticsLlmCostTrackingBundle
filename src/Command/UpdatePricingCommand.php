@@ -62,6 +62,10 @@ final class UpdatePricingCommand extends Command
         } catch (\Throwable $e) {
             $io->error('Failed to fetch pricing from models.dev: '.$e->getMessage());
 
+            if ($output->isVeryVerbose()) {
+                $io->writeln((string) $e);
+            }
+
             return Command::FAILURE;
         }
     }

@@ -35,15 +35,20 @@ final class ModelRegistry
         }
 
         if (null !== $this->dynamicPricing) {
-            try {
-                $this->dynamicCache ??= $this->dynamicPricing->getModels();
-
-                return $this->dynamicCache[$modelId] ?? null;
-            } catch (\Throwable $e) {
-                $this->logger?->warning('Failed to fetch dynamic LLM pricing from models.dev.', [
-                    'exception' => $e,
-                ]);
+            if (null === $this->dynamicCache) {
+                try {
+                    $this->dynamicCache = $this->dynamicPricing->getModels();
+                } catch (\Throwable $e) {
+                    $this->logger?->warning('Failed to fetch dynamic LLM pricing from models.dev.', [
+                        'exception' => $e,
+                    ]);
+                    // Memoize the failure so subsequent lookups within the same instance
+                    // do not re-attempt the provider call.
+                    $this->dynamicCache = [];
+                }
             }
+
+            return $this->dynamicCache[$modelId] ?? null;
         }
 
         return null;

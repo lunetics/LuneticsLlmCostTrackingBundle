@@ -93,7 +93,13 @@ final class ModelsDevPricingProvider implements RefreshablePricingProviderInterf
             $providerName = (string) $providerData['name'];
 
             foreach ($providerData['models'] as $modelId => $modelData) {
-                if (!\is_array($modelData) || !isset($modelData['cost']['input'], $modelData['cost']['output'])) {
+                if (!\is_array($modelData) || !isset($modelData['cost']) || !\is_array($modelData['cost'])) {
+                    continue;
+                }
+
+                $cost = $modelData['cost'];
+
+                if (!isset($cost['input'], $cost['output'])) {
                     continue;
                 }
 
@@ -103,11 +109,9 @@ final class ModelsDevPricingProvider implements RefreshablePricingProviderInterf
                     continue;
                 }
 
-                $cost = $modelData['cost'];
-
                 $models[(string) $modelId] = new ModelDefinition(
                     modelId: (string) $modelId,
-                    displayName: isset($modelData['name']) ? (string) $modelData['name'] : (string) $modelId,
+                    displayName: isset($modelData['name']) && \is_string($modelData['name']) ? $modelData['name'] : (string) $modelId,
                     provider: $providerName,
                     inputPricePerMillion: (float) $cost['input'],
                     outputPricePerMillion: (float) $cost['output'],
