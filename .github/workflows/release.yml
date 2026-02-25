@@ -45,4 +45,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ github.ref_name }}
-        run: gh release create "$TAG_NAME" --generate-notes --clobber
+        run: |
+          gh release delete "$TAG_NAME" --yes --cleanup-tag=false 2>/dev/null || true
+          gh release create "$TAG_NAME" --generate-notes
