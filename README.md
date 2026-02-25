@@ -1,5 +1,11 @@
 # LuneticsLlmCostTrackingBundle
 
+[![CI](https://github.com/lunetics/llm-cost-tracking-bundle/actions/workflows/ci.yml/badge.svg)](https://github.com/lunetics/llm-cost-tracking-bundle/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/lunetics/llm-cost-tracking-bundle/graph/badge.svg)](https://codecov.io/gh/lunetics/llm-cost-tracking-bundle)
+[![Latest Stable Version](https://poser.pugx.org/lunetics/llm-cost-tracking-bundle/v/stable)](https://packagist.org/packages/lunetics/llm-cost-tracking-bundle)
+[![Total Downloads](https://poser.pugx.org/lunetics/llm-cost-tracking-bundle/downloads)](https://packagist.org/packages/lunetics/llm-cost-tracking-bundle)
+[![License](https://poser.pugx.org/lunetics/llm-cost-tracking-bundle/license)](https://packagist.org/packages/lunetics/llm-cost-tracking-bundle)
+
 A Symfony bundle that tracks LLM API costs and displays them in the Web Debug Toolbar and Profiler.
 
 Hooks into [symfony/ai-bundle](https://github.com/symfony/ai-bundle)'s `TraceablePlatform` to calculate per-request costs based on token usage, with support for input, output, cached, and thinking tokens.

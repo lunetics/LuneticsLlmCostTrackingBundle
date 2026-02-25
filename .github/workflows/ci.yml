@@ -6,6 +6,19 @@ on:
   pull_request:
 
 jobs:
+  validate:
+    name: Validate Composer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - run: composer validate --strict
+
   coding-standards:
     name: Coding Standards
     runs-on: ubuntu-latest
