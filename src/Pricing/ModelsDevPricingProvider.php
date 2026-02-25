@@ -23,6 +23,14 @@ final class ModelsDevPricingProvider implements RefreshablePricingProviderInterf
     private const CACHE_KEY = 'lunetics_llm.models_dev_pricing';
     private const MAX_RESPONSE_SIZE = 5 * 1024 * 1024; // 5 MB
 
+    /**
+     * Memoized snapshot result for the lifetime of this instance.
+     * false = not yet attempted; array = loaded (possibly empty on failure).
+     *
+     * @var array<string, ModelDefinition>|false
+     */
+    private array|false $snapshotCache = false;
+
     public function __construct(
         private readonly HttpClientInterface $httpClient,
         private readonly CacheInterface $cache,
@@ -121,24 +129,37 @@ final class ModelsDevPricingProvider implements RefreshablePricingProviderInterf
 
     /**
      * Loads the bundled pricing snapshot as a fallback when live fetching fails.
+     * Result is memoized for the lifetime of this instance to avoid re-reading
+     * a 3 MB file on every cache miss during an outage.
      *
      * @return array<string, ModelDefinition>
      */
     private function loadSnapshot(): array
     {
+        if (false !== $this->snapshotCache) {
+            return $this->snapshotCache;
+        }
+
         if ('' === $this->snapshotPath || !is_file($this->snapshotPath)) {
-            return [];
+            return $this->snapshotCache = [];
         }
 
         try {
             $json = file_get_contents($this->snapshotPath);
             if (false === $json) {
-                return [];
+                $this->logger?->error('Failed to read pricing snapshot file.', ['path' => $this->snapshotPath]);
+
+                return $this->snapshotCache = [];
             }
 
-            return $this->parseResponseBody($json);
-        } catch (\Throwable) {
-            return [];
+            return $this->snapshotCache = $this->parseResponseBody($json);
+        } catch (\Throwable $e) {
+            $this->logger?->error('Failed to parse pricing snapshot.', [
+                'path' => $this->snapshotPath,
+                'exception' => $e,
+            ]);
+
+            return $this->snapshotCache = [];
         }
     }
 

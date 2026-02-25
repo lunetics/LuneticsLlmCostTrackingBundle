@@ -25,7 +25,7 @@ $data = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
 
 array_unshift($data, [
     '_meta' => [
-        'generated_at' => date('Y-m-d'),
+        'generated_at' => (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format('Y-m-d'),
         'source' => $source,
     ],
 ]);
