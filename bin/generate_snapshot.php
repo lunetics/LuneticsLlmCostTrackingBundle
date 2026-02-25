@@ -9,14 +9,28 @@ declare(strict_types=1);
  * Usage: php bin/generate_snapshot.php
  */
 
+require_once \dirname(__DIR__).'/vendor/autoload.php';
+
+use Symfony\Component\HttpClient\HttpClient;
+
 $source = 'https://models.dev/api.json';
 $dest = \dirname(__DIR__).'/resources/pricing_snapshot.json';
 
 echo "Fetching {$source} ...\n";
 
-$json = file_get_contents($source);
-if (false === $json) {
-    fwrite(STDERR, "Error: failed to fetch {$source}\n");
+try {
+    $client = HttpClient::create();
+    $response = $client->request('GET', $source);
+
+    $statusCode = $response->getStatusCode();
+    if (200 !== $statusCode) {
+        fwrite(STDERR, sprintf("Error: failed to fetch %s (HTTP %d)\n", $source, $statusCode));
+        exit(1);
+    }
+
+    $json = $response->getContent();
+} catch (\Throwable $e) {
+    fwrite(STDERR, sprintf("Error: failed to fetch %s: %s\n", $source, $e->getMessage()));
     exit(1);
 }
 
