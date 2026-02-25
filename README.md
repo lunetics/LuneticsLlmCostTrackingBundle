@@ -113,107 +113,19 @@ php bin/console lunetics:llm:update-pricing --verbose
 
 The command exits with a non-zero status if the API is unreachable or returns no models, making it safe to use in deployment pipelines.
 
-## Integration Examples
+## Bundled Model Defaults
 
-This bundle works with any platform supported by [symfony/ai-bundle](https://github.com/symfony/ai-bundle). Below are complete configuration examples for the three major providers. Each example shows the symfony/ai-bundle platform config, the cost tracking config, and a controller that calls the LLM.
+The bundle ships with default pricing for common models so they work without any `models:` configuration. The model string passed to `$platform->invoke()` (e.g. `'gpt-5'`) is the same string the bundle uses to look up pricing.
 
-> **The key link:** the model string passed to `$platform->invoke()` (e.g. `'gpt-5'`) is the same string the bundle uses to look up pricing. Most models are already covered by the bundle defaults or dynamic pricing from models.dev — you only need a `models:` entry for custom or self-hosted models.
+| Provider | Models with bundled pricing |
+|----------|---------------------------|
+| OpenAI | `gpt-5`, `gpt-5-mini`, `gpt-4o-mini`, `gpt-4.1-mini` |
+| Anthropic | `claude-sonnet-4-6`, `claude-opus-4-6` (incl. cached input and thinking tokens) |
+| Google | `gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-3-flash-preview`, `gemini-3-pro-preview` |
 
-### OpenAI
+Any model not listed above is resolved automatically via [models.dev](https://models.dev) dynamic pricing (when enabled).
 
-```bash
-composer require symfony/ai-openai-platform
-```
-
-```yaml
-# config/packages/symfony_ai.yaml
-symfony_ai:
-    platform:
-        openai:
-            api_key: '%env(OPENAI_API_KEY)%'
-
-# config/packages/lunetics_llm_cost_tracking.yaml
-lunetics_llm_cost_tracking:
-    budget_warning: 1.00
-```
-
-```php
-// src/Controller/ChatController.php
-namespace App\Controller;
-
-use Symfony\AI\Platform\PlatformInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Attribute\Route;
-
-class ChatController extends AbstractController
-{
-    #[Route('/chat')]
-    public function chat(PlatformInterface $platform): Response
-    {
-        // The model string 'gpt-5' is matched against the pricing registry
-        $result = $platform->invoke('gpt-5', 'Explain Symfony in one sentence.');
-
-        return $this->render('chat.html.twig', [
-            'answer' => $result->getResult()->getContent(),
-        ]);
-    }
-}
-```
-
-The bundle ships with default pricing for `gpt-5`, `gpt-5-mini`, `gpt-4o-mini`, and `gpt-4.1-mini`. Any other OpenAI model is resolved automatically via models.dev.
-
-### Anthropic
-
-```bash
-composer require symfony/ai-anthropic-platform
-```
-
-```yaml
-# config/packages/symfony_ai.yaml
-symfony_ai:
-    platform:
-        anthropic:
-            api_key: '%env(ANTHROPIC_API_KEY)%'
-
-# config/packages/lunetics_llm_cost_tracking.yaml
-lunetics_llm_cost_tracking:
-    budget_warning: 0.50
-```
-
-```php
-$result = $platform->invoke('claude-sonnet-4-6', 'Explain dependency injection.');
-```
-
-Default pricing is included for `claude-sonnet-4-6` and `claude-opus-4-6`, with support for cached input and thinking tokens. Other Anthropic models are resolved via models.dev.
-
-### Google Gemini
-
-```bash
-composer require symfony/ai-gemini-platform
-```
-
-```yaml
-# config/packages/symfony_ai.yaml
-symfony_ai:
-    platform:
-        gemini:
-            api_key: '%env(GOOGLE_GEMINI_API_KEY)%'
-
-# config/packages/lunetics_llm_cost_tracking.yaml
-lunetics_llm_cost_tracking:
-    budget_warning: 0.25
-```
-
-```php
-$result = $platform->invoke('gemini-2.5-flash', 'Summarize this document.');
-```
-
-Default pricing is included for `gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-3-flash-preview`, and `gemini-3-pro-preview`.
-
-### Multiple Providers
-
-You can configure multiple providers simultaneously. Each platform registers its own `TraceablePlatform` in debug mode, and the cost tracker aggregates calls from all of them:
+### Example: OpenAI GPT
 
 ```yaml
 # config/packages/symfony_ai.yaml
@@ -221,40 +133,16 @@ symfony_ai:
     platform:
         openai:
             api_key: '%env(OPENAI_API_KEY)%'
-        anthropic:
-            api_key: '%env(ANTHROPIC_API_KEY)%'
-        gemini:
-            api_key: '%env(GOOGLE_GEMINI_API_KEY)%'
 ```
-
-When multiple platforms are configured, inject them by name instead of the generic `PlatformInterface`:
 
 ```php
-use Symfony\AI\Platform\PlatformInterface;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
-
-class AiService
-{
-    public function __construct(
-        #[Autowire(service: 'ai.platform.openai')]
-        private readonly PlatformInterface $openai,
-        #[Autowire(service: 'ai.platform.anthropic')]
-        private readonly PlatformInterface $anthropic,
-    ) {}
-
-    public function summarize(string $text): string
-    {
-        // Both calls are tracked and priced automatically
-        $result = $this->openai->invoke('gpt-5', $text);
-
-        return $result->getResult()->getContent();
-    }
-}
+// The model string 'gpt-5' is matched against the pricing registry
+$result = $platform->invoke('gpt-5', 'Explain Symfony in one sentence.');
 ```
 
-The profiler panel shows costs per model regardless of which platform the call went through.
+No `lunetics_llm_cost_tracking` config is needed — `gpt-5` is in the bundled defaults. Costs appear automatically in the profiler toolbar. The same applies to Anthropic and Google models listed above.
 
-### Overriding Pricing for a Specific Model
+### Overriding or Adding Model Pricing
 
 If you use a model that isn't in the defaults or on models.dev (e.g. a fine-tuned or self-hosted model), add it to your config:
 
