@@ -35,7 +35,12 @@ final class ModelsDevPricingProvider implements RefreshablePricingProviderInterf
     /**
      * Returns all models from models.dev, keyed by model ID.
      * Result is cached for $ttl seconds. On fetch failure, falls back to the
-     * bundled snapshot and short-caches the result to avoid hammering the API.
+     * bundled snapshot.
+     *
+     * When the snapshot provides a usable baseline, it is cached for the full TTL
+     * so repeated requests during an outage do not each incur a 10–15 s HTTP
+     * attempt before falling through to the snapshot. The short TTL (60 s) is
+     * used only when there is no snapshot at all, so the provider retries sooner.
      *
      * @return array<string, ModelDefinition>
      */
@@ -47,14 +52,15 @@ final class ModelsDevPricingProvider implements RefreshablePricingProviderInterf
             try {
                 return $this->fetch();
             } catch (\Throwable $e) {
-                // Cache the failure briefly to avoid hammering the API on outages.
-                // The command (invalidate + getModels) can force a retry.
-                $item->expiresAfter(60);
                 $this->logger?->warning('Failed to fetch dynamic LLM pricing from models.dev.', [
                     'exception' => $e,
                 ]);
 
-                return $this->loadSnapshot();
+                $fallback = $this->loadSnapshot();
+
+                $item->expiresAfter([] === $fallback ? 60 : $this->ttl);
+
+                return $fallback;
             }
         });
     }
@@ -65,6 +71,30 @@ final class ModelsDevPricingProvider implements RefreshablePricingProviderInterf
     public function invalidate(): void
     {
         $this->cache->delete(self::CACHE_KEY);
+    }
+
+    /**
+     * Fetches fresh pricing from the live API, writes it to the cache, and returns the models.
+     * Throws on any failure — never falls back to the snapshot.
+     *
+     * @return array<string, ModelDefinition>
+     *
+     * @throws \Throwable on HTTP failure, timeout, size limit, or invalid API response
+     */
+    public function fetchLive(): array
+    {
+        $models = $this->fetch();
+
+        // Replace whatever is in the cache with the fresh live result so that
+        // subsequent getModels() calls serve it without a further HTTP round-trip.
+        $this->cache->delete(self::CACHE_KEY);
+        $this->cache->get(self::CACHE_KEY, function (ItemInterface $item) use ($models): array {
+            $item->expiresAfter($this->ttl);
+
+            return $models;
+        });
+
+        return $models;
     }
 
     /**

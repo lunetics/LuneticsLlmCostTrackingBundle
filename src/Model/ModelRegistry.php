@@ -16,7 +16,7 @@ final class ModelRegistry implements ModelRegistryInterface
     private ?array $dynamicCache = null;
 
     /**
-     * @param array<string, ModelDefinition> $models user-configured and bundle-default models
+     * @param array<string, ModelDefinition> $models user-configured models (from the models: config key)
      */
     public function __construct(
         array $models = [],
@@ -55,8 +55,8 @@ final class ModelRegistry implements ModelRegistryInterface
     }
 
     /**
-     * Returns locally registered models (user config + bundle defaults).
-     * Does not include models only available via dynamic pricing.
+     * Returns user-configured models (from the models: config key).
+     * Does not include models only available via dynamic pricing or the bundled snapshot.
      *
      * @return array<string, ModelDefinition>
      */

@@ -54,7 +54,7 @@ The bundle resolves pricing for a model using the following priority order:
 
 This means most models work out of the box with no configuration. Your own entries always win.
 
-> **All prices are in USD.** The bundle defaults, the models.dev feed, and any prices you configure are all treated as USD. There is no currency conversion; the `$` prefix shown in the profiler is a literal dollar sign.
+> **All prices are in USD.** The models.dev feed and any prices you configure are all treated as USD. There is no currency conversion; the `$` prefix shown in the profiler is a literal dollar sign.
 
 ## Configuration
 
@@ -134,6 +134,8 @@ lunetics_llm_cost_tracking:
 
 When disabled, only your `models:` config is used — no bundled snapshot and no live fetching. The `lunetics:llm:update-pricing` command is also removed from the container. This is the right choice for fully air-gapped environments where you manage all model pricing explicitly.
 
+> **Upgrade note:** before v0.3, the bundle shipped a small static list of bundled defaults (gpt-5, claude-sonnet-4-6, etc.) that were available even when dynamic pricing was disabled. Those defaults have been removed. If you had `dynamic_pricing.enabled: false` and relied on models resolving without explicit `models:` config, add those models to your YAML configuration.
+
 ### Adjusting the Cache TTL
 
 The dynamic pricing response is cached to avoid unnecessary HTTP requests on every page load. The default TTL is 24 hours. To refresh more or less frequently:
@@ -195,7 +197,7 @@ No `lunetics_llm_cost_tracking` config is needed — `gpt-5` is covered by dynam
 
 ### Overriding or Adding Model Pricing
 
-If you use a model that isn't in the defaults or on models.dev (e.g. a fine-tuned or self-hosted model), add it to your config:
+If you use a model that isn't on models.dev (e.g. a fine-tuned or self-hosted model), add it to your config:
 
 ```yaml
 lunetics_llm_cost_tracking:

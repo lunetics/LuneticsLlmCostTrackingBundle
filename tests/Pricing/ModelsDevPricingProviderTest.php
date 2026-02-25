@@ -132,6 +132,43 @@ final class ModelsDevPricingProviderTest extends TestCase
     }
 
     #[Test]
+    public function itFetchLiveReturnsParsedModelsAndPopulatesCache(): void
+    {
+        $response = static::createStub(ResponseInterface::class);
+        $stream = $this->createStream($this->createChunk(self::minimalFixture()), $response);
+
+        $httpClient = $this->createMock(HttpClientInterface::class);
+        $httpClient->expects($this->once())->method('request')->willReturn($response);
+        $httpClient->method('stream')->willReturn($stream);
+
+        $cache = new ArrayAdapter();
+        $provider = new ModelsDevPricingProvider($httpClient, $cache, 86400, '');
+
+        $models = $provider->fetchLive();
+
+        self::assertArrayHasKey('gpt-5', $models);
+        self::assertSame(1.25, $models['gpt-5']->inputPricePerMillion);
+
+        // Cache must be warm — second getModels() call must not trigger another HTTP request
+        $provider->getModels();
+    }
+
+    #[Test]
+    public function itFetchLiveThrowsOnApiFailureNeverFallsBackToSnapshot(): void
+    {
+        $httpClient = $this->createMock(HttpClientInterface::class);
+        $httpClient->method('request')->willThrowException(new \RuntimeException('API down'));
+
+        $snapshotPath = __DIR__.'/../fixtures/pricing_snapshot_minimal.json';
+        $provider = new ModelsDevPricingProvider($httpClient, new ArrayAdapter(), 86400, $snapshotPath);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('API down');
+
+        $provider->fetchLive();
+    }
+
+    #[Test]
     public function itDoesNotRetryImmediatelyAfterFetchFailure(): void
     {
         $httpClient = $this->createMock(HttpClientInterface::class);
