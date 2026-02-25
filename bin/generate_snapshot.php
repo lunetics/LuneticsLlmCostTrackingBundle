@@ -30,9 +30,13 @@ array_unshift($data, [
     ],
 ]);
 
-file_put_contents(
+$written = file_put_contents(
     $dest,
     json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
 );
+if (false === $written) {
+    fwrite(STDERR, "Error: failed to write {$dest}\n");
+    exit(1);
+}
 
 echo "Snapshot written to resources/pricing_snapshot.json\n";
