@@ -42,7 +42,7 @@ final class LuneticsLlmCostTrackingBundle extends AbstractBundle
         $builder->getDefinition('lunetics_llm_cost_tracking.model_registry')
             ->replaceArgument('$models', $models);
 
-        if (true === ($config['dynamic_pricing']['enabled'] ?? true)) {
+        if (true === $config['dynamic_pricing']['enabled']) {
             $services = $container->services();
 
             $services->set('lunetics_llm_cost_tracking.pricing_provider', ModelsDevPricingProvider::class)
