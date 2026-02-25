@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Lunetics\LlmCostTrackingBundle\DataCollector\LlmCostCollector;
+use Lunetics\LlmCostTrackingBundle\EventListener\CostLoggerListener;
 use Lunetics\LlmCostTrackingBundle\Model\ModelRegistry;
 use Lunetics\LlmCostTrackingBundle\Model\ModelRegistryInterface;
 use Lunetics\LlmCostTrackingBundle\Service\CostCalculator;
@@ -38,6 +39,11 @@ return static function (ContainerConfigurator $container): void {
         ->tag('kernel.reset', ['method' => 'reset']);
 
     $services->alias(CostTrackerInterface::class, 'lunetics_llm_cost_tracking.cost_tracker');
+
+    $services->set('lunetics_llm_cost_tracking.cost_logger_listener', CostLoggerListener::class)
+        ->arg('$costTracker', service('lunetics_llm_cost_tracking.cost_tracker'))
+        ->arg('$logger', service('logger')->nullOnInvalid())
+        ->tag('kernel.event_listener', ['event' => 'kernel.terminate', 'method' => '__invoke']);
 
     $services->set('lunetics_llm_cost_tracking.data_collector', LlmCostCollector::class)
         ->arg('$costTracker', service('lunetics_llm_cost_tracking.cost_tracker'))

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Monolog cost logging** (`logging` config key, enabled by default). On every request that
+  makes at least one AI call the bundle now logs per-call detail and a summary on
+  `kernel.terminate` via the `ai` Monolog channel. Disable with `logging.enabled: false`;
+  change the channel with `logging.channel: 'your-channel'`.
+
+  > **Upgrade note:** logging is enabled by default. If you do not want production log output,
+  > add `logging: { enabled: false }` to your `lunetics_llm_cost_tracking` config.
+
 ## [0.1.3] - 2026-02-25
 
 ### Changed

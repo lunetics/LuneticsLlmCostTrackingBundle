@@ -66,6 +66,9 @@ lunetics_llm_cost_tracking:
     cost_thresholds:
         low: 0.01                 # below = green
         medium: 0.10              # between low/medium = yellow, above = red
+    logging:
+        enabled: true             # default: true — log per-request cost data via Monolog
+        channel: 'ai'             # Monolog channel (default: 'ai'); route it via your handlers
     dynamic_pricing:
         enabled: true             # default: true — fetch live pricing from models.dev
         ttl: 86400                # cache duration in seconds (default: 24h, max: 7 days)
@@ -77,6 +80,48 @@ lunetics_llm_cost_tracking:
             output_price_per_million: 5.00
             cached_input_price_per_million: 0.10   # optional
             thinking_price_per_million: 5.00       # optional
+```
+
+### Logging
+
+By default the bundle logs per-request LLM cost data via Monolog on the `ai` channel. Each request
+that makes at least one AI call produces:
+
+- one `info` log per call (model, provider, token breakdown, cost)
+- one `info` summary log (total calls, cost, tokens)
+- one `warning` if any models lack pricing configuration
+
+Logs are emitted on `kernel.terminate` — after the response is sent — so there is no latency impact.
+
+To route AI cost logs to a dedicated file, configure a Monolog handler for the `ai` channel:
+
+```yaml
+# config/packages/monolog.yaml
+monolog:
+    channels: [ai]
+    handlers:
+        ai_costs:
+            type: stream
+            path: '%kernel.logs_dir%/ai_costs.log'
+            channels: [ai]
+```
+
+If the `ai` channel is not explicitly configured, logs fall through to your default handler.
+
+To disable logging entirely:
+
+```yaml
+lunetics_llm_cost_tracking:
+    logging:
+        enabled: false
+```
+
+To use a different channel name:
+
+```yaml
+lunetics_llm_cost_tracking:
+    logging:
+        channel: 'llm'
 ```
 
 ### Disabling Dynamic Pricing
