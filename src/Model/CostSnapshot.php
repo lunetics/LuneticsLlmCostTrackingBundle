@@ -7,9 +7,9 @@ namespace Lunetics\LlmCostTrackingBundle\Model;
 final readonly class CostSnapshot
 {
     /**
-     * @param list<CallRecord>              $calls
+     * @param list<CallRecord>                $calls
      * @param array<string, ModelAggregation> $byModel
-     * @param list<string>                  $unconfiguredModels
+     * @param list<string>                    $unconfiguredModels
      */
     public function __construct(
         public array $calls,

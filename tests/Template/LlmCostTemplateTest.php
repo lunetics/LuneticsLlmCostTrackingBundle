@@ -133,9 +133,9 @@ final class LlmCostTemplateTest extends TestCase
     /**
      * Renders the template with an anonymous collector stub populated from the given data.
      *
-     * @param list<CallRecord>              $calls
+     * @param list<CallRecord>                $calls
      * @param array<string, ModelAggregation> $byModel
-     * @param list<string>                  $unconfiguredModels
+     * @param list<string>                    $unconfiguredModels
      */
     private function renderTemplate(
         CostSummary $totals = new CostSummary(0, 0, 0, 0, 0.0),
@@ -147,9 +147,9 @@ final class LlmCostTemplateTest extends TestCase
     ): string {
         $collector = new class($totals, $calls, $byModel, $unconfiguredModels, $costThresholds, $budgetWarning) {
             /**
-             * @param list<CallRecord>              $calls
+             * @param list<CallRecord>                $calls
              * @param array<string, ModelAggregation> $byModel
-             * @param list<string>                  $unconfiguredModels
+             * @param list<string>                    $unconfiguredModels
              */
             public function __construct(
                 private readonly CostSummary $totals,

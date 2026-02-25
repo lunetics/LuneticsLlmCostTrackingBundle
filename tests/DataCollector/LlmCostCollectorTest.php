@@ -11,10 +11,10 @@ use Lunetics\LlmCostTrackingBundle\Model\CostSummary;
 use Lunetics\LlmCostTrackingBundle\Model\CostThresholds;
 use Lunetics\LlmCostTrackingBundle\Model\ModelAggregation;
 use Lunetics\LlmCostTrackingBundle\Service\CostTrackerInterface;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 final class LlmCostCollectorTest extends TestCase
 {
