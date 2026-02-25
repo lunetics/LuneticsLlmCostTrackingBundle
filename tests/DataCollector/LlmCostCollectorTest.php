@@ -24,6 +24,26 @@ use Symfony\AI\Platform\TokenUsage\TokenUsageInterface;
 final class LlmCostCollectorTest extends TestCase
 {
     #[Test]
+    public function itReturnsEmptyDefaultsBeforeLateCollect(): void
+    {
+        $collector = $this->createCollector([]);
+
+        // collect() is intentionally a no-op; $this->data is never populated until lateCollect()
+        $collector->collect(
+            static::createStub(\Symfony\Component\HttpFoundation\Request::class),
+            static::createStub(\Symfony\Component\HttpFoundation\Response::class),
+        );
+
+        self::assertSame([], $collector->getCalls());
+        self::assertSame([], $collector->getByModel());
+        self::assertSame([], $collector->getUnconfiguredModels());
+        self::assertSame(
+            ['calls' => 0, 'input_tokens' => 0, 'output_tokens' => 0, 'total_tokens' => 0, 'cost' => 0.0],
+            $collector->getTotals(),
+        );
+    }
+
+    #[Test]
     public function itReturnsEmptyDataWhenNoCalls(): void
     {
         $collector = $this->createCollector([]);
