@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-02-25
+## [0.1.0] - 2026-02-25
 
 ### Added
 - Web Debug Toolbar and Profiler Panel integration
@@ -23,5 +23,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `lunetics:llm:update-pricing` console command
 - Readonly DTOs: `CostSnapshot`, `CostSummary`, `ModelAggregation`, `CallRecord`
 
-[Unreleased]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/lunetics/llm-cost-tracking-bundle/releases/tag/v1.0.0
+[Unreleased]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/lunetics/llm-cost-tracking-bundle/releases/tag/v0.1.0
