@@ -7,8 +7,9 @@ namespace Lunetics\LlmCostTrackingBundle\Service;
 use Lunetics\LlmCostTrackingBundle\Model\ModelRegistryInterface;
 use Symfony\AI\AiBundle\Profiler\TraceablePlatform;
 use Symfony\AI\Platform\TokenUsage\TokenUsageInterface;
+use Symfony\Contracts\Service\ResetInterface;
 
-final class CostTracker implements CostTrackerInterface
+final class CostTracker implements CostTrackerInterface, ResetInterface
 {
     /** @var TraceablePlatform[] */
     private readonly array $platforms;
@@ -55,6 +56,11 @@ final class CostTracker implements CostTrackerInterface
     public function getSnapshot(): array
     {
         return $this->compute();
+    }
+
+    public function reset(): void
+    {
+        $this->snapshot = null;
     }
 
     /**

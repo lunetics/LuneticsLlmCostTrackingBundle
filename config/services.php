@@ -34,7 +34,8 @@ return static function (ContainerConfigurator $container): void {
     $services->set('lunetics_llm_cost_tracking.cost_tracker', CostTracker::class)
         ->arg('$platforms', tagged_iterator('ai.traceable_platform'))
         ->arg('$modelRegistry', service('lunetics_llm_cost_tracking.model_registry'))
-        ->arg('$costCalculator', service('lunetics_llm_cost_tracking.cost_calculator'));
+        ->arg('$costCalculator', service('lunetics_llm_cost_tracking.cost_calculator'))
+        ->tag('kernel.reset', ['method' => 'reset']);
 
     $services->alias(CostTrackerInterface::class, 'lunetics_llm_cost_tracking.cost_tracker');
 

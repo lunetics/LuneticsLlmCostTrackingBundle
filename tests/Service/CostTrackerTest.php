@@ -288,6 +288,26 @@ final class CostTrackerTest extends TestCase
         self::assertSame([], $tracker->getUnconfiguredModels());
     }
 
+    #[Test]
+    public function itClearsMemoizedSnapshotOnReset(): void
+    {
+        $platform = $this->createPlatform([
+            $this->createCall('gpt-5', new TokenUsage(100, 50)),
+        ]);
+
+        $tracker = $this->createTracker([$platform]);
+
+        $firstSnapshot = $tracker->getSnapshot();
+        self::assertSame(1, $firstSnapshot['totals']['calls']);
+
+        // Simulate a new request in a long-running runtime
+        $platform->calls = [];
+        $tracker->reset();
+
+        $secondSnapshot = $tracker->getSnapshot();
+        self::assertSame(0, $secondSnapshot['totals']['calls']);
+    }
+
     /** @param TraceablePlatform[] $platforms */
     private function createTracker(array $platforms): CostTracker
     {
