@@ -15,7 +15,7 @@ test-coverage: ## Run PHPUnit tests with pcov coverage report (requires: docker 
 	docker compose run --rm php vendor/bin/phpunit --coverage-text
 
 phpstan: ## Run PHPStan static analysis
-	$(PHP) vendor/bin/phpstan analyse
+	$(PHP) vendor/bin/phpstan analyse --memory-limit 256M
 
 cs-check: ## Check coding standards (dry-run)
 	$(PHP) vendor/bin/php-cs-fixer check
