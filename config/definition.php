@@ -43,7 +43,6 @@ return static function (DefinitionConfigurator $definition): void {
                     ->end()
                     ->scalarNode('channel')
                         ->defaultValue('ai')
-                        ->cannotBeEmpty()
                         ->info('Monolog channel name for LLM cost logs. Allows routing to a dedicated handler.')
                     ->end()
                 ->end()

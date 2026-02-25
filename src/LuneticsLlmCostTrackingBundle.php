@@ -84,6 +84,9 @@ final class LuneticsLlmCostTrackingBundle extends AbstractBundle
 
         if (true === $config['logging']['enabled']) {
             $channel = $config['logging']['channel'];
+            if ('' === $channel) {
+                throw new \InvalidArgumentException('The "lunetics_llm_cost_tracking.logging.channel" value cannot be empty when logging is enabled.');
+            }
             $builder->getDefinition('lunetics_llm_cost_tracking.cost_logger_listener')
                 ->addTag('monolog.logger', ['channel' => $channel]);
         } else {
