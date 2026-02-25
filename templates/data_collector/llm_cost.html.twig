@@ -35,16 +35,16 @@
             </div>
             <div class="sf-toolbar-info-piece">
                 <b>Input Tokens</b>
-                <span>{{ totals.input_tokens|number_format }}</span>
+                <span>{{ totals.inputTokens|number_format }}</span>
             </div>
             <div class="sf-toolbar-info-piece">
                 <b>Output Tokens</b>
-                <span>{{ totals.output_tokens|number_format }}</span>
+                <span>{{ totals.outputTokens|number_format }}</span>
             </div>
 
             {% for model_id, model in collector.byModel %}
                 <div class="sf-toolbar-info-piece">
-                    <b>{{ model.display_name }}</b>
+                    <b>{{ model.displayName }}</b>
                     <span>{{ model.calls }}x &mdash; ${{ '%0.4f'|format(model.cost) }}</span>
                 </div>
             {% endfor %}
@@ -113,11 +113,11 @@
             <div class="metric-divider"></div>
             <div class="metric-group">
                 <div class="metric">
-                    <span class="value">{{ totals.input_tokens|number_format }}</span>
+                    <span class="value">{{ totals.inputTokens|number_format }}</span>
                     <span class="label">Input Tokens</span>
                 </div>
                 <div class="metric">
-                    <span class="value">{{ totals.output_tokens|number_format }}</span>
+                    <span class="value">{{ totals.outputTokens|number_format }}</span>
                     <span class="label">Output Tokens</span>
                 </div>
             </div>
@@ -140,12 +140,12 @@
             <tbody>
                 {% for model_id, model in collector.byModel %}
                     <tr>
-                        <td>{{ model.display_name }}</td>
+                        <td>{{ model.displayName }}</td>
                         <td>{{ model.provider }}</td>
                         <td class="text-right">{{ model.calls }}</td>
-                        <td class="text-right">{{ model.input_tokens|number_format }}</td>
-                        <td class="text-right">{{ model.output_tokens|number_format }}</td>
-                        <td class="text-right">{{ model.total_tokens|number_format }}</td>
+                        <td class="text-right">{{ model.inputTokens|number_format }}</td>
+                        <td class="text-right">{{ model.outputTokens|number_format }}</td>
+                        <td class="text-right">{{ model.totalTokens|number_format }}</td>
                         <td class="text-right">
                             <span class="{{ _self.cost_class(model.cost, thresholds) }}">${{ '%0.6f'|format(model.cost) }}</span>
                         </td>
@@ -156,9 +156,9 @@
                 <tr>
                     <th colspan="2">Total</th>
                     <th class="text-right">{{ totals.calls }}</th>
-                    <th class="text-right">{{ totals.input_tokens|number_format }}</th>
-                    <th class="text-right">{{ totals.output_tokens|number_format }}</th>
-                    <th class="text-right">{{ totals.total_tokens|number_format }}</th>
+                    <th class="text-right">{{ totals.inputTokens|number_format }}</th>
+                    <th class="text-right">{{ totals.outputTokens|number_format }}</th>
+                    <th class="text-right">{{ totals.totalTokens|number_format }}</th>
                     <th class="text-right">${{ '%0.6f'|format(totals.cost) }}</th>
                 </tr>
             </tfoot>
@@ -183,12 +183,12 @@
                 {% for call in collector.calls %}
                     <tr>
                         <td>{{ loop.index }}</td>
-                        <td>{{ call.display_name }}</td>
+                        <td>{{ call.displayName }}</td>
                         <td>{{ call.provider }}</td>
-                        <td class="text-right">{{ call.input_tokens|number_format }}</td>
-                        <td class="text-right">{{ call.output_tokens|number_format }}</td>
-                        <td class="text-right">{{ call.thinking_tokens > 0 ? call.thinking_tokens|number_format : '-' }}</td>
-                        <td class="text-right">{{ call.cached_tokens > 0 ? call.cached_tokens|number_format : '-' }}</td>
+                        <td class="text-right">{{ call.inputTokens|number_format }}</td>
+                        <td class="text-right">{{ call.outputTokens|number_format }}</td>
+                        <td class="text-right">{{ call.thinkingTokens > 0 ? call.thinkingTokens|number_format : '-' }}</td>
+                        <td class="text-right">{{ call.cachedTokens > 0 ? call.cachedTokens|number_format : '-' }}</td>
                         <td class="text-right">
                             <span class="{{ _self.cost_class(call.cost, thresholds) }}">${{ '%0.6f'|format(call.cost) }}</span>
                         </td>

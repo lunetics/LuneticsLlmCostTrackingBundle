@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Lunetics\LlmCostTrackingBundle\DataCollector;
 
+use Lunetics\LlmCostTrackingBundle\Model\CallRecord;
+use Lunetics\LlmCostTrackingBundle\Model\CostSummary;
+use Lunetics\LlmCostTrackingBundle\Model\CostThresholds;
+use Lunetics\LlmCostTrackingBundle\Model\ModelAggregation;
 use Lunetics\LlmCostTrackingBundle\Service\CostTrackerInterface;
 use Symfony\Bundle\FrameworkBundle\DataCollector\AbstractDataCollector;
 use Symfony\Component\HttpFoundation\Request;
@@ -12,10 +16,9 @@ use Symfony\Component\HttpKernel\DataCollector\LateDataCollectorInterface;
 
 final class LlmCostCollector extends AbstractDataCollector implements LateDataCollectorInterface
 {
-    /** @param array{low: float, medium: float} $costThresholds */
     public function __construct(
         private readonly CostTrackerInterface $costTracker,
-        private readonly array $costThresholds,
+        private readonly CostThresholds $costThresholds,
         private readonly ?float $budgetWarning,
     ) {
     }
@@ -32,10 +35,7 @@ final class LlmCostCollector extends AbstractDataCollector implements LateDataCo
         $snapshot = $this->costTracker->getSnapshot();
 
         $this->data = [
-            'calls' => $snapshot['calls'],
-            'by_model' => $snapshot['by_model'],
-            'totals' => $snapshot['totals'],
-            'unconfigured_models' => $snapshot['unconfigured_models'],
+            'snapshot' => $snapshot,
             'cost_thresholds' => $this->costThresholds,
             'budget_warning' => $this->budgetWarning,
         ];
@@ -51,34 +51,32 @@ final class LlmCostCollector extends AbstractDataCollector implements LateDataCo
         return '@LuneticsLlmCostTracking/data_collector/llm_cost.html.twig';
     }
 
-    /** @return list<array<string, mixed>> */
+    /** @return list<CallRecord> */
     public function getCalls(): array
     {
-        return $this->data['calls'] ?? [];
+        return $this->data['snapshot']->calls ?? [];
     }
 
-    /** @return array<string, array<string, mixed>> */
+    /** @return array<string, ModelAggregation> */
     public function getByModel(): array
     {
-        return $this->data['by_model'] ?? [];
+        return $this->data['snapshot']->byModel ?? [];
     }
 
-    /** @return array{calls: int, input_tokens: int, output_tokens: int, total_tokens: int, cost: float} */
-    public function getTotals(): array
+    public function getTotals(): CostSummary
     {
-        return $this->data['totals'] ?? ['calls' => 0, 'input_tokens' => 0, 'output_tokens' => 0, 'total_tokens' => 0, 'cost' => 0.0];
+        return $this->data['snapshot']->totals ?? new CostSummary(0, 0, 0, 0, 0.0);
     }
 
     /** @return list<string> */
     public function getUnconfiguredModels(): array
     {
-        return $this->data['unconfigured_models'] ?? [];
+        return $this->data['snapshot']->unconfiguredModels ?? [];
     }
 
-    /** @return array{low: float, medium: float} */
-    public function getCostThresholds(): array
+    public function getCostThresholds(): CostThresholds
     {
-        return $this->data['cost_thresholds'] ?? ['low' => 0.01, 'medium' => 0.10];
+        return $this->data['cost_thresholds'] ?? new CostThresholds(0.01, 0.10);
     }
 
     public function getBudgetWarning(): ?float

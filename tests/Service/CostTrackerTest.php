@@ -29,8 +29,8 @@ final class CostTrackerTest extends TestCase
         $tracker = $this->createTracker([]);
 
         $totals = $tracker->getTotals();
-        self::assertSame(0, $totals['calls']);
-        self::assertSame(0.0, $totals['cost']);
+        self::assertSame(0, $totals->calls);
+        self::assertSame(0.0, $totals->cost);
         self::assertSame([], $tracker->getCalls());
         self::assertSame([], $tracker->getByModel());
         self::assertSame([], $tracker->getUnconfiguredModels());
@@ -46,22 +46,22 @@ final class CostTrackerTest extends TestCase
         $tracker = $this->createTracker([$platform]);
 
         $totals = $tracker->getTotals();
-        self::assertSame(1, $totals['calls']);
-        self::assertSame(1000, $totals['input_tokens']);
-        self::assertSame(500, $totals['output_tokens']);
-        self::assertSame(1500, $totals['total_tokens']);
+        self::assertSame(1, $totals->calls);
+        self::assertSame(1000, $totals->inputTokens);
+        self::assertSame(500, $totals->outputTokens);
+        self::assertSame(1500, $totals->totalTokens);
         // (1000/1M * 1.25) + (500/1M * 10.00) = 0.00125 + 0.005 = 0.00625
-        self::assertSame(0.00625, $totals['cost']);
+        self::assertSame(0.00625, $totals->cost);
 
         $calls = $tracker->getCalls();
         self::assertCount(1, $calls);
-        self::assertSame('gpt-5', $calls[0]['model']);
-        self::assertSame('GPT-5', $calls[0]['display_name']);
-        self::assertSame('OpenAI', $calls[0]['provider']);
+        self::assertSame('gpt-5', $calls[0]->model);
+        self::assertSame('GPT-5', $calls[0]->displayName);
+        self::assertSame('OpenAI', $calls[0]->provider);
 
         $byModel = $tracker->getByModel();
         self::assertArrayHasKey('gpt-5', $byModel);
-        self::assertSame(1, $byModel['gpt-5']['calls']);
+        self::assertSame(1, $byModel['gpt-5']->calls);
 
         self::assertSame([], $tracker->getUnconfiguredModels());
     }
@@ -77,15 +77,15 @@ final class CostTrackerTest extends TestCase
         $tracker = $this->createTracker([$platform]);
 
         $totals = $tracker->getTotals();
-        self::assertSame(2, $totals['calls']);
-        self::assertSame(3000, $totals['input_tokens']);
-        self::assertSame(1500, $totals['output_tokens']);
+        self::assertSame(2, $totals->calls);
+        self::assertSame(3000, $totals->inputTokens);
+        self::assertSame(1500, $totals->outputTokens);
 
         $byModel = $tracker->getByModel();
         self::assertCount(1, $byModel);
-        self::assertSame(2, $byModel['gpt-5']['calls']);
-        self::assertSame(3000, $byModel['gpt-5']['input_tokens']);
-        self::assertSame(1500, $byModel['gpt-5']['output_tokens']);
+        self::assertSame(2, $byModel['gpt-5']->calls);
+        self::assertSame(3000, $byModel['gpt-5']->inputTokens);
+        self::assertSame(1500, $byModel['gpt-5']->outputTokens);
     }
 
     #[Test]
@@ -99,14 +99,14 @@ final class CostTrackerTest extends TestCase
         $tracker = $this->createTracker([$platform]);
 
         $totals = $tracker->getTotals();
-        self::assertSame(2, $totals['calls']);
+        self::assertSame(2, $totals->calls);
 
         $byModel = $tracker->getByModel();
         self::assertCount(2, $byModel);
         self::assertArrayHasKey('gpt-5', $byModel);
         self::assertArrayHasKey('claude-sonnet-4-6', $byModel);
-        self::assertSame(1, $byModel['gpt-5']['calls']);
-        self::assertSame(1, $byModel['claude-sonnet-4-6']['calls']);
+        self::assertSame(1, $byModel['gpt-5']->calls);
+        self::assertSame(1, $byModel['claude-sonnet-4-6']->calls);
     }
 
     #[Test]
@@ -119,12 +119,12 @@ final class CostTrackerTest extends TestCase
         $tracker = $this->createTracker([$platform]);
 
         $totals = $tracker->getTotals();
-        self::assertSame(1, $totals['calls']);
-        self::assertSame(0.0, $totals['cost']);
+        self::assertSame(1, $totals->calls);
+        self::assertSame(0.0, $totals->cost);
 
         $calls = $tracker->getCalls();
-        self::assertSame('unknown-model', $calls[0]['display_name']);
-        self::assertSame('Unknown', $calls[0]['provider']);
+        self::assertSame('unknown-model', $calls[0]->displayName);
+        self::assertSame('Unknown', $calls[0]->provider);
 
         self::assertSame(['unknown-model'], $tracker->getUnconfiguredModels());
     }
@@ -140,12 +140,12 @@ final class CostTrackerTest extends TestCase
         $tracker = $this->createTracker([$platform]);
 
         $totals = $tracker->getTotals();
-        self::assertSame(2, $totals['calls']);
-        self::assertGreaterThan(0.0, $totals['cost']);
+        self::assertSame(2, $totals->calls);
+        self::assertGreaterThan(0.0, $totals->cost);
 
         $byModel = $tracker->getByModel();
-        self::assertGreaterThan(0.0, $byModel['gpt-5']['cost']);
-        self::assertSame(0.0, $byModel['unknown-model']['cost']);
+        self::assertGreaterThan(0.0, $byModel['gpt-5']->cost);
+        self::assertSame(0.0, $byModel['unknown-model']->cost);
 
         self::assertSame(['unknown-model'], $tracker->getUnconfiguredModels());
     }
@@ -161,8 +161,8 @@ final class CostTrackerTest extends TestCase
         $tracker = $this->createTracker([$platform]);
 
         $totals = $tracker->getTotals();
-        self::assertSame(1, $totals['calls']);
-        self::assertSame(1000, $totals['input_tokens']);
+        self::assertSame(1, $totals->calls);
+        self::assertSame(1000, $totals->inputTokens);
     }
 
     #[Test]
@@ -188,10 +188,10 @@ final class CostTrackerTest extends TestCase
         $tracker = $this->createTracker([$platform]);
 
         $calls = $tracker->getCalls();
-        self::assertSame(10000, $calls[0]['input_tokens']);
-        self::assertSame(2000, $calls[0]['output_tokens']);
-        self::assertSame(5000, $calls[0]['thinking_tokens']);
-        self::assertSame(3000, $calls[0]['cached_tokens']);
+        self::assertSame(10000, $calls[0]->inputTokens);
+        self::assertSame(2000, $calls[0]->outputTokens);
+        self::assertSame(5000, $calls[0]->thinkingTokens);
+        self::assertSame(3000, $calls[0]->cachedTokens);
 
         // regular input = max(0, 10000 - 3000) = 7000 -> 7000/1M * 3.00 = 0.021
         // output = 2000/1M * 15.00 = 0.03
@@ -199,7 +199,7 @@ final class CostTrackerTest extends TestCase
         // thinking = 5000/1M * 15.00 = 0.075
         // total = 0.1269
         $totals = $tracker->getTotals();
-        self::assertSame(0.1269, $totals['cost']);
+        self::assertSame(0.1269, $totals->cost);
     }
 
     #[Test]
@@ -212,10 +212,10 @@ final class CostTrackerTest extends TestCase
         $tracker = $this->createTracker([$platform]);
 
         $totals = $tracker->getTotals();
-        self::assertSame(1, $totals['calls']);
-        self::assertSame(0, $totals['input_tokens']);
-        self::assertSame(0, $totals['output_tokens']);
-        self::assertSame(0.0, $totals['cost']);
+        self::assertSame(1, $totals->calls);
+        self::assertSame(0, $totals->inputTokens);
+        self::assertSame(0, $totals->outputTokens);
+        self::assertSame(0.0, $totals->cost);
     }
 
     #[Test]
@@ -231,9 +231,9 @@ final class CostTrackerTest extends TestCase
         $tracker = $this->createTracker([$platform1, $platform2]);
 
         $totals = $tracker->getTotals();
-        self::assertSame(2, $totals['calls']);
-        self::assertSame(3000, $totals['input_tokens']);
-        self::assertSame(1500, $totals['output_tokens']);
+        self::assertSame(2, $totals->calls);
+        self::assertSame(3000, $totals->inputTokens);
+        self::assertSame(1500, $totals->outputTokens);
 
         $byModel = $tracker->getByModel();
         self::assertCount(2, $byModel);
@@ -251,10 +251,10 @@ final class CostTrackerTest extends TestCase
 
         $snapshot = $tracker->getSnapshot();
 
-        self::assertSame($tracker->getCalls(), $snapshot['calls']);
-        self::assertSame($tracker->getTotals(), $snapshot['totals']);
-        self::assertSame($tracker->getByModel(), $snapshot['by_model']);
-        self::assertSame($tracker->getUnconfiguredModels(), $snapshot['unconfigured_models']);
+        self::assertSame($tracker->getCalls(), $snapshot->calls);
+        self::assertSame($tracker->getTotals(), $snapshot->totals);
+        self::assertSame($tracker->getByModel(), $snapshot->byModel);
+        self::assertSame($tracker->getUnconfiguredModels(), $snapshot->unconfiguredModels);
     }
 
     #[Test]
@@ -279,11 +279,11 @@ final class CostTrackerTest extends TestCase
 
         // (1000/1M * 2.00) + (500/1M * 8.00) = 0.002 + 0.004 = 0.006
         $totals = $tracker->getTotals();
-        self::assertSame(0.006, $totals['cost']);
+        self::assertSame(0.006, $totals->cost);
 
         $calls = $tracker->getCalls();
-        self::assertSame('GPT Dynamic', $calls[0]['display_name']);
-        self::assertSame('OpenAI', $calls[0]['provider']);
+        self::assertSame('GPT Dynamic', $calls[0]->displayName);
+        self::assertSame('OpenAI', $calls[0]->provider);
 
         self::assertSame([], $tracker->getUnconfiguredModels());
     }
@@ -298,14 +298,14 @@ final class CostTrackerTest extends TestCase
         $tracker = $this->createTracker([$platform]);
 
         $firstSnapshot = $tracker->getSnapshot();
-        self::assertSame(1, $firstSnapshot['totals']['calls']);
+        self::assertSame(1, $firstSnapshot->totals->calls);
 
         // Simulate a new request in a long-running runtime
         $platform->calls = [];
         $tracker->reset();
 
         $secondSnapshot = $tracker->getSnapshot();
-        self::assertSame(0, $secondSnapshot['totals']['calls']);
+        self::assertSame(0, $secondSnapshot->totals->calls);
     }
 
     /** @param TraceablePlatform[] $platforms */

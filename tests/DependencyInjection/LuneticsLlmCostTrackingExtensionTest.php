@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Lunetics\LlmCostTrackingBundle\Tests\DependencyInjection;
 
 use Lunetics\LlmCostTrackingBundle\LuneticsLlmCostTrackingBundle;
+use Lunetics\LlmCostTrackingBundle\Model\CostThresholds;
 use Lunetics\LlmCostTrackingBundle\Model\ModelRegistryInterface;
 use Lunetics\LlmCostTrackingBundle\Service\CostCalculatorInterface;
 use Lunetics\LlmCostTrackingBundle\Service\CostTrackerInterface;
@@ -50,7 +51,10 @@ final class LuneticsLlmCostTrackingExtensionTest extends TestCase
 
         $definition = $container->getDefinition('lunetics_llm_cost_tracking.data_collector');
 
-        self::assertSame(['low' => 0.05, 'medium' => 0.50], $definition->getArgument('$costThresholds'));
+        $thresholds = $definition->getArgument('$costThresholds');
+        self::assertInstanceOf(CostThresholds::class, $thresholds);
+        self::assertSame(0.05, $thresholds->low);
+        self::assertSame(0.50, $thresholds->medium);
     }
 
     #[Test]

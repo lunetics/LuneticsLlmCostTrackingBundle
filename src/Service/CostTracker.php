@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Lunetics\LlmCostTrackingBundle\Service;
 
+use Lunetics\LlmCostTrackingBundle\Model\CallRecord;
+use Lunetics\LlmCostTrackingBundle\Model\CostSnapshot;
+use Lunetics\LlmCostTrackingBundle\Model\CostSummary;
+use Lunetics\LlmCostTrackingBundle\Model\ModelAggregation;
 use Lunetics\LlmCostTrackingBundle\Model\ModelRegistryInterface;
 use Symfony\AI\AiBundle\Profiler\TraceablePlatform;
 use Symfony\AI\Platform\TokenUsage\TokenUsageInterface;
@@ -14,15 +18,7 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
     /** @var TraceablePlatform[] */
     private readonly array $platforms;
 
-    /**
-     * @var array{
-     *     calls: list<array{model: string, display_name: string, provider: string, input_tokens: int, output_tokens: int, total_tokens: int, thinking_tokens: int, cached_tokens: int, cost: float}>,
-     *     by_model: array<string, array{display_name: string, provider: string, calls: int, input_tokens: int, output_tokens: int, total_tokens: int, cost: float}>,
-     *     totals: array{calls: int, input_tokens: int, output_tokens: int, total_tokens: int, cost: float},
-     *     unconfigured_models: list<string>,
-     * }|null
-     */
-    private ?array $snapshot = null;
+    private ?CostSnapshot $snapshot = null;
 
     /** @param iterable<TraceablePlatform> $platforms */
     public function __construct(
@@ -35,25 +31,25 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
 
     public function getCalls(): array
     {
-        return $this->compute()['calls'];
+        return $this->compute()->calls;
     }
 
-    public function getTotals(): array
+    public function getTotals(): CostSummary
     {
-        return $this->compute()['totals'];
+        return $this->compute()->totals;
     }
 
     public function getByModel(): array
     {
-        return $this->compute()['by_model'];
+        return $this->compute()->byModel;
     }
 
     public function getUnconfiguredModels(): array
     {
-        return $this->compute()['unconfigured_models'];
+        return $this->compute()->unconfiguredModels;
     }
 
-    public function getSnapshot(): array
+    public function getSnapshot(): CostSnapshot
     {
         return $this->compute();
     }
@@ -63,15 +59,7 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
         $this->snapshot = null;
     }
 
-    /**
-     * @return array{
-     *     calls: list<array{model: string, display_name: string, provider: string, input_tokens: int, output_tokens: int, total_tokens: int, thinking_tokens: int, cached_tokens: int, cost: float}>,
-     *     by_model: array<string, array{display_name: string, provider: string, calls: int, input_tokens: int, output_tokens: int, total_tokens: int, cost: float}>,
-     *     totals: array{calls: int, input_tokens: int, output_tokens: int, total_tokens: int, cost: float},
-     *     unconfigured_models: list<string>,
-     * }
-     */
-    private function compute(): array
+    private function compute(): CostSnapshot
     {
         if (null !== $this->snapshot) {
             return $this->snapshot;
@@ -80,7 +68,11 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
         $calls = [];
         $byModel = [];
         $unconfiguredModels = [];
-        $totals = ['calls' => 0, 'input_tokens' => 0, 'output_tokens' => 0, 'total_tokens' => 0, 'cost' => 0.0];
+        $totalCalls = 0;
+        $totalInputTokens = 0;
+        $totalOutputTokens = 0;
+        $totalTotalTokens = 0;
+        $totalCost = 0.0;
 
         foreach ($this->platforms as $platform) {
             foreach ($platform->calls as $call) {
@@ -100,14 +92,14 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
                 $outputTokens = 0;
                 $thinkingTokens = 0;
                 $cachedTokens = 0;
-                $totalTokens = 0;
+                $callTotalTokens = 0;
 
                 if ($tokenUsage instanceof TokenUsageInterface) {
                     $inputTokens = $tokenUsage->getPromptTokens() ?? 0;
                     $outputTokens = $tokenUsage->getCompletionTokens() ?? 0;
                     $thinkingTokens = $tokenUsage->getThinkingTokens() ?? 0;
                     $cachedTokens = $tokenUsage->getCachedTokens() ?? 0;
-                    $totalTokens = $tokenUsage->getTotalTokens() ?? ($inputTokens + $outputTokens);
+                    $callTotalTokens = $tokenUsage->getTotalTokens() ?? ($inputTokens + $outputTokens);
                 }
 
                 if (null !== $modelDefinition) {
@@ -127,53 +119,67 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
                     $unconfiguredModels[$modelString] = true;
                 }
 
-                $calls[] = [
-                    'model' => $modelString,
-                    'display_name' => $displayName,
-                    'provider' => $provider,
-                    'input_tokens' => $inputTokens,
-                    'output_tokens' => $outputTokens,
-                    'total_tokens' => $totalTokens,
-                    'thinking_tokens' => $thinkingTokens,
-                    'cached_tokens' => $cachedTokens,
-                    'cost' => $cost,
-                ];
+                $calls[] = new CallRecord(
+                    model: $modelString,
+                    displayName: $displayName,
+                    provider: $provider,
+                    inputTokens: $inputTokens,
+                    outputTokens: $outputTokens,
+                    totalTokens: $callTotalTokens,
+                    thinkingTokens: $thinkingTokens,
+                    cachedTokens: $cachedTokens,
+                    cost: $cost,
+                );
 
                 if (!isset($byModel[$modelString])) {
                     $byModel[$modelString] = [
-                        'display_name' => $displayName,
+                        'displayName' => $displayName,
                         'provider' => $provider,
                         'calls' => 0,
-                        'input_tokens' => 0,
-                        'output_tokens' => 0,
-                        'total_tokens' => 0,
+                        'inputTokens' => 0,
+                        'outputTokens' => 0,
+                        'totalTokens' => 0,
                         'cost' => 0.0,
                     ];
                 }
                 ++$byModel[$modelString]['calls'];
-                $byModel[$modelString]['input_tokens'] += $inputTokens;
-                $byModel[$modelString]['output_tokens'] += $outputTokens;
-                $byModel[$modelString]['total_tokens'] += $totalTokens;
+                $byModel[$modelString]['inputTokens'] += $inputTokens;
+                $byModel[$modelString]['outputTokens'] += $outputTokens;
+                $byModel[$modelString]['totalTokens'] += $callTotalTokens;
                 $byModel[$modelString]['cost'] += $cost;
 
-                ++$totals['calls'];
-                $totals['input_tokens'] += $inputTokens;
-                $totals['output_tokens'] += $outputTokens;
-                $totals['total_tokens'] += $totalTokens;
-                $totals['cost'] += $cost;
+                ++$totalCalls;
+                $totalInputTokens += $inputTokens;
+                $totalOutputTokens += $outputTokens;
+                $totalTotalTokens += $callTotalTokens;
+                $totalCost += $cost;
             }
         }
 
-        foreach ($byModel as &$modelData) {
-            $modelData['cost'] = round($modelData['cost'], 6);
+        $byModelDtos = [];
+        foreach ($byModel as $modelId => $data) {
+            $byModelDtos[$modelId] = new ModelAggregation(
+                displayName: $data['displayName'],
+                provider: $data['provider'],
+                calls: $data['calls'],
+                inputTokens: $data['inputTokens'],
+                outputTokens: $data['outputTokens'],
+                totalTokens: $data['totalTokens'],
+                cost: round($data['cost'], 6),
+            );
         }
-        $totals['cost'] = round($totals['cost'], 6);
 
-        return $this->snapshot = [
-            'calls' => $calls,
-            'by_model' => $byModel,
-            'totals' => $totals,
-            'unconfigured_models' => array_keys($unconfiguredModels),
-        ];
+        return $this->snapshot = new CostSnapshot(
+            calls: $calls,
+            byModel: $byModelDtos,
+            totals: new CostSummary(
+                calls: $totalCalls,
+                inputTokens: $totalInputTokens,
+                outputTokens: $totalOutputTokens,
+                totalTokens: $totalTotalTokens,
+                cost: round($totalCost, 6),
+            ),
+            unconfiguredModels: array_keys($unconfiguredModels),
+        );
     }
 }
