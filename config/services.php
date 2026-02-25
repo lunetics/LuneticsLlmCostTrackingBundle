@@ -43,7 +43,8 @@ return static function (ContainerConfigurator $container): void {
     $services->set('lunetics_llm_cost_tracking.cost_logger_listener', CostLoggerListener::class)
         ->arg('$costTracker', service('lunetics_llm_cost_tracking.cost_tracker'))
         ->arg('$logger', service('logger')->nullOnInvalid())
-        ->tag('kernel.event_listener', ['event' => 'kernel.terminate', 'method' => '__invoke']);
+        ->tag('kernel.event_listener', ['event' => 'kernel.terminate', 'method' => '__invoke'])
+        ->tag('kernel.event_listener', ['event' => 'console.terminate', 'method' => '__invoke']);
 
     $services->set('lunetics_llm_cost_tracking.data_collector', LlmCostCollector::class)
         ->arg('$costTracker', service('lunetics_llm_cost_tracking.cost_tracker'))

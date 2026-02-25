@@ -6,18 +6,23 @@ namespace Lunetics\LlmCostTrackingBundle\EventListener;
 
 use Lunetics\LlmCostTrackingBundle\Service\CostTrackerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Console\Event\ConsoleTerminateEvent;
 use Symfony\Component\HttpKernel\Event\TerminateEvent;
 
 final class CostLoggerListener
 {
     public function __construct(
         private readonly CostTrackerInterface $costTracker,
-        private readonly LoggerInterface $logger,
+        private readonly ?LoggerInterface $logger = null,
     ) {
     }
 
-    public function __invoke(TerminateEvent $event): void
+    public function __invoke(TerminateEvent|ConsoleTerminateEvent $event): void
     {
+        if (null === $this->logger) {
+            return;
+        }
+
         $snapshot = $this->costTracker->getSnapshot();
 
         if (0 === $snapshot->totals->calls) {

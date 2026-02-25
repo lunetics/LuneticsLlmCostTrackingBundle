@@ -12,6 +12,10 @@ use Lunetics\LlmCostTrackingBundle\Service\CostTrackerInterface;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Event\ConsoleTerminateEvent;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\NullOutput;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\TerminateEvent;
@@ -181,7 +185,51 @@ final class CostLoggerListenerTest extends TestCase
         $listener($this->createTerminateEvent());
     }
 
-    private function createListener(CostSnapshot $snapshot, LoggerInterface $logger): CostLoggerListener
+    #[Test]
+    public function itDoesNothingWhenLoggerIsNull(): void
+    {
+        $costTracker = $this->createMock(CostTrackerInterface::class);
+        $costTracker->expects(self::never())->method('getSnapshot');
+
+        $listener = new CostLoggerListener($costTracker);
+
+        // Must not throw even with calls pending — logger is absent
+        $listener($this->createTerminateEvent());
+    }
+
+    #[Test]
+    public function itLogsOnConsoleTerminate(): void
+    {
+        $call = new CallRecord(
+            model: 'claude-sonnet-4-6',
+            displayName: 'Claude Sonnet 4.6',
+            provider: 'Anthropic',
+            inputTokens: 100,
+            outputTokens: 50,
+            totalTokens: 150,
+            thinkingTokens: 0,
+            cachedTokens: 0,
+            cost: 0.001,
+        );
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::exactly(2))->method('info');
+        $logger->expects(self::never())->method('warning');
+
+        $listener = $this->createListener(
+            snapshot: new CostSnapshot(
+                calls: [$call],
+                byModel: [],
+                totals: new CostSummary(1, 100, 50, 150, 0.001),
+                unconfiguredModels: [],
+            ),
+            logger: $logger,
+        );
+
+        $listener(new ConsoleTerminateEvent(new Command('test'), new ArrayInput([]), new NullOutput(), 0));
+    }
+
+    private function createListener(CostSnapshot $snapshot, ?LoggerInterface $logger = null): CostLoggerListener
     {
         $costTracker = $this->createStub(CostTrackerInterface::class);
         $costTracker->method('getSnapshot')->willReturn($snapshot);

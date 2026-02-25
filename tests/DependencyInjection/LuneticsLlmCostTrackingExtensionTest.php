@@ -170,8 +170,10 @@ final class LuneticsLlmCostTrackingExtensionTest extends TestCase
         self::assertSame('ai', $monologTags[0]['channel']);
 
         $eventTags = $definition->getTag('kernel.event_listener');
-        self::assertCount(1, $eventTags);
-        self::assertSame('kernel.terminate', $eventTags[0]['event']);
+        self::assertCount(2, $eventTags);
+        $registeredEvents = array_column($eventTags, 'event');
+        self::assertContains('kernel.terminate', $registeredEvents);
+        self::assertContains('console.terminate', $registeredEvents);
     }
 
     #[Test]
