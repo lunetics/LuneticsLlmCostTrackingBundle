@@ -70,7 +70,7 @@ final class CostLoggerListenerTest extends TestCase
 
         $logger->expects(self::exactly(2))
             ->method('info')
-            ->willReturnCallback(function (string $message, array $context) use ($call, $totals): void {
+            ->willReturnCallback(static function (string $message, array $context): void {
                 static $callIndex = 0;
 
                 if (0 === $callIndex) {
@@ -135,7 +135,7 @@ final class CostLoggerListenerTest extends TestCase
             ->method('warning')
             ->with(
                 self::stringContains('unknown-model'),
-                self::callback(function (array $context): bool {
+                self::callback(static function (array $context): bool {
                     return ['unknown-model', 'other-model'] === $context['models'];
                 }),
             );
@@ -231,7 +231,7 @@ final class CostLoggerListenerTest extends TestCase
 
     private function createListener(CostSnapshot $snapshot, ?LoggerInterface $logger = null): CostLoggerListener
     {
-        $costTracker = $this->createStub(CostTrackerInterface::class);
+        $costTracker = static::createStub(CostTrackerInterface::class);
         $costTracker->method('getSnapshot')->willReturn($snapshot);
 
         return new CostLoggerListener($costTracker, $logger);
@@ -240,7 +240,7 @@ final class CostLoggerListenerTest extends TestCase
     private function createTerminateEvent(): TerminateEvent
     {
         return new TerminateEvent(
-            $this->createStub(HttpKernelInterface::class),
+            static::createStub(HttpKernelInterface::class),
             new Request(),
             new Response(),
         );

@@ -31,7 +31,7 @@ final class CostLoggerListener
 
         foreach ($snapshot->calls as $call) {
             $this->logger->info(
-                sprintf(
+                \sprintf(
                     'LLM call: %s (%s) — %d in, %d out, %d total tokens — $%f',
                     $call->displayName,
                     $call->provider,
@@ -54,7 +54,7 @@ final class CostLoggerListener
         }
 
         $this->logger->info(
-            sprintf(
+            \sprintf(
                 'LLM cost summary: %d calls, $%f total — %d in, %d out, %d total tokens',
                 $snapshot->totals->calls,
                 $snapshot->totals->cost,
@@ -73,7 +73,7 @@ final class CostLoggerListener
 
         if ([] !== $snapshot->unconfiguredModels) {
             $this->logger->warning(
-                sprintf('LLM models without pricing: %s', implode(', ', $snapshot->unconfiguredModels)),
+                \sprintf('LLM models without pricing: %s', implode(', ', $snapshot->unconfiguredModels)),
                 ['models' => $snapshot->unconfiguredModels],
             );
         }
