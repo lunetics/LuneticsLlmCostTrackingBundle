@@ -7,7 +7,7 @@ namespace Lunetics\LlmCostTrackingBundle\Model;
 use Lunetics\LlmCostTrackingBundle\Pricing\PricingProviderInterface;
 use Psr\Log\LoggerInterface;
 
-final class ModelRegistry
+final class ModelRegistry implements ModelRegistryInterface
 {
     /** @var array<string, ModelDefinition> */
     private array $models = [];

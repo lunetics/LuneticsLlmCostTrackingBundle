@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace Lunetics\LlmCostTrackingBundle\Tests\DependencyInjection;
 
 use Lunetics\LlmCostTrackingBundle\LuneticsLlmCostTrackingBundle;
+use Lunetics\LlmCostTrackingBundle\Model\CostThresholds;
+use Lunetics\LlmCostTrackingBundle\Model\ModelRegistryInterface;
 use Lunetics\LlmCostTrackingBundle\Service\CostCalculatorInterface;
+use Lunetics\LlmCostTrackingBundle\Service\CostTrackerInterface;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -20,8 +23,11 @@ final class LuneticsLlmCostTrackingExtensionTest extends TestCase
 
         self::assertTrue($container->hasDefinition('lunetics_llm_cost_tracking.model_registry'));
         self::assertTrue($container->hasDefinition('lunetics_llm_cost_tracking.cost_calculator'));
+        self::assertTrue($container->hasDefinition('lunetics_llm_cost_tracking.cost_tracker'));
         self::assertTrue($container->hasDefinition('lunetics_llm_cost_tracking.data_collector'));
+        self::assertTrue($container->hasAlias(ModelRegistryInterface::class));
         self::assertTrue($container->hasAlias(CostCalculatorInterface::class));
+        self::assertTrue($container->hasAlias(CostTrackerInterface::class));
     }
 
     #[Test]
@@ -30,8 +36,10 @@ final class LuneticsLlmCostTrackingExtensionTest extends TestCase
         $container = $this->buildContainer(['enabled' => false]);
 
         self::assertFalse($container->hasDefinition('lunetics_llm_cost_tracking.model_registry'));
+        self::assertFalse($container->hasDefinition('lunetics_llm_cost_tracking.cost_tracker'));
         self::assertFalse($container->hasDefinition('lunetics_llm_cost_tracking.cost_calculator'));
         self::assertFalse($container->hasDefinition('lunetics_llm_cost_tracking.data_collector'));
+        self::assertFalse($container->hasAlias(ModelRegistryInterface::class));
     }
 
     #[Test]
@@ -43,7 +51,10 @@ final class LuneticsLlmCostTrackingExtensionTest extends TestCase
 
         $definition = $container->getDefinition('lunetics_llm_cost_tracking.data_collector');
 
-        self::assertSame(['low' => 0.05, 'medium' => 0.50], $definition->getArgument('$costThresholds'));
+        $thresholds = $definition->getArgument('$costThresholds');
+        self::assertInstanceOf(CostThresholds::class, $thresholds);
+        self::assertSame(0.05, $thresholds->low);
+        self::assertSame(0.50, $thresholds->medium);
     }
 
     #[Test]

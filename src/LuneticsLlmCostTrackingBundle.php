@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Lunetics\LlmCostTrackingBundle;
 
 use Lunetics\LlmCostTrackingBundle\Command\UpdatePricingCommand;
+use Lunetics\LlmCostTrackingBundle\Model\CostThresholds;
 use Lunetics\LlmCostTrackingBundle\Model\ModelDefinition;
 use Lunetics\LlmCostTrackingBundle\Pricing\ModelsDevPricingProvider;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
@@ -60,7 +61,10 @@ final class LuneticsLlmCostTrackingBundle extends AbstractBundle
         }
 
         $builder->getDefinition('lunetics_llm_cost_tracking.data_collector')
-            ->replaceArgument('$costThresholds', $config['cost_thresholds'])
+            ->replaceArgument('$costThresholds', new CostThresholds(
+                low: $config['cost_thresholds']['low'],
+                medium: $config['cost_thresholds']['medium'],
+            ))
             ->replaceArgument('$budgetWarning', $config['budget_warning']);
     }
 

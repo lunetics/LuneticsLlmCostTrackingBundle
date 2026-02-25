@@ -35,6 +35,7 @@ return [
 - **Color-coded costs** — green/yellow/red based on configurable thresholds
 - **Dynamic pricing** — automatically fetches live model pricing from [models.dev](https://models.dev), covering hundreds of models without any manual configuration
 - **Unconfigured model detection** — warns when a model has no pricing data
+- **Injectable cost tracking** — use `CostTrackerInterface` in your own services to access cost data outside the profiler
 - **Extensible** — implement `CostCalculatorInterface` to provide custom pricing logic
 
 ## Model Pricing
@@ -112,9 +113,85 @@ php bin/console lunetics:llm:update-pricing --verbose
 
 The command exits with a non-zero status if the API is unreachable or returns no models, making it safe to use in deployment pipelines.
 
+## Bundled Model Defaults
+
+The bundle ships with default pricing for common models so they work without any `models:` configuration. The model string passed to `$platform->invoke()` (e.g. `'gpt-5'`) is the same string the bundle uses to look up pricing.
+
+| Provider | Models with bundled pricing |
+|----------|---------------------------|
+| OpenAI | `gpt-5`, `gpt-5-mini`, `gpt-4o-mini`, `gpt-4.1-mini` |
+| Anthropic | `claude-sonnet-4-6`, `claude-opus-4-6` (incl. cached input and thinking tokens) |
+| Google | `gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-3-flash-preview`, `gemini-3-pro-preview` |
+
+Any model not listed above is resolved automatically via [models.dev](https://models.dev) dynamic pricing (when enabled).
+
+### Example: OpenAI GPT
+
+```yaml
+# config/packages/symfony_ai.yaml
+symfony_ai:
+    platform:
+        openai:
+            api_key: '%env(OPENAI_API_KEY)%'
+```
+
+```php
+// The model string 'gpt-5' is matched against the pricing registry
+$result = $platform->invoke('gpt-5', 'Explain Symfony in one sentence.');
+```
+
+No `lunetics_llm_cost_tracking` config is needed — `gpt-5` is in the bundled defaults. Costs appear automatically in the profiler toolbar. The same applies to Anthropic and Google models listed above.
+
+### Overriding or Adding Model Pricing
+
+If you use a model that isn't in the defaults or on models.dev (e.g. a fine-tuned or self-hosted model), add it to your config:
+
+```yaml
+lunetics_llm_cost_tracking:
+    models:
+        ft:gpt-5:my-finetuned-2025:
+            display_name: 'My Fine-tuned GPT-5'
+            provider: 'OpenAI'
+            input_price_per_million: 3.00
+            output_price_per_million: 15.00
+```
+
+Your `models:` entries always take precedence over bundle defaults and dynamic pricing.
+
+## Using Cost Data in Your Services
+
+The `CostTrackerInterface` service is available for dependency injection. Use it to access cost data outside the profiler — for example, in middleware, event listeners, or API responses:
+
+```php
+use Lunetics\LlmCostTrackingBundle\Service\CostTrackerInterface;
+
+class MyService
+{
+    public function __construct(
+        private readonly CostTrackerInterface $costTracker,
+    ) {}
+
+    public function logCosts(): void
+    {
+        $totals = $this->costTracker->getTotals();
+        // $totals = ['calls' => 3, 'input_tokens' => 5000, ..., 'cost' => 0.042]
+
+        // Or get everything in one call:
+        $snapshot = $this->costTracker->getSnapshot();
+        // $snapshot = ['calls' => [...], 'by_model' => [...], 'totals' => [...], 'unconfigured_models' => [...]]
+    }
+}
+```
+
+Available methods: `getCalls()`, `getTotals()`, `getByModel()`, `getUnconfiguredModels()`, `getSnapshot()`.
+
+The `ModelRegistryInterface` and `CostCalculatorInterface` are also available for injection if you need lower-level access to model definitions or cost calculation.
+
 ## How It Works
 
-The bundle collects data from all services tagged with `ai.traceable_platform` (provided by symfony/ai-bundle). After each request, `LlmCostCollector` iterates over all recorded LLM calls, extracts token usage metadata, and calculates costs using the configured model pricing.
+The bundle collects data from all services tagged with `ai.traceable_platform` (provided by symfony/ai-bundle). The `CostTracker` service iterates over all recorded LLM calls, extracts token usage metadata, and calculates costs using the configured model pricing. Results are memoized for the lifetime of the request, so repeated calls to any getter return the same data without recomputation.
+
+The `LlmCostCollector` (Symfony Profiler data collector) delegates to `CostTracker` via `getSnapshot()`, which returns all cost data in a single atomic call. This separation keeps business logic in a standalone service that can be injected anywhere, while the data collector focuses on profiler integration.
 
 Cost formula per call:
 
