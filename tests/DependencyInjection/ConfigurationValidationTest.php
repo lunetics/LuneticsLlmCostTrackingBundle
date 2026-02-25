@@ -53,7 +53,6 @@ final class ConfigurationValidationTest extends TestCase
     public function itAcceptsValidConfiguration(): void
     {
         $container = $this->buildContainer([
-            'currency' => 'EUR',
             'budget_warning' => 1.00,
             'cost_thresholds' => ['low' => 0.05, 'medium' => 0.50],
             'models' => [

@@ -1,0 +1,7 @@
+services:
+  php:
+    build: .
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: sleep infinity

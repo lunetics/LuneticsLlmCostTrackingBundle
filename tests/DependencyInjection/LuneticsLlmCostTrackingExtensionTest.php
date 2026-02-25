@@ -9,6 +9,7 @@ use Lunetics\LlmCostTrackingBundle\Service\CostCalculatorInterface;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Reference;
 
 final class LuneticsLlmCostTrackingExtensionTest extends TestCase
 {
@@ -31,16 +32,6 @@ final class LuneticsLlmCostTrackingExtensionTest extends TestCase
         self::assertFalse($container->hasDefinition('lunetics_llm_cost_tracking.model_registry'));
         self::assertFalse($container->hasDefinition('lunetics_llm_cost_tracking.cost_calculator'));
         self::assertFalse($container->hasDefinition('lunetics_llm_cost_tracking.data_collector'));
-    }
-
-    #[Test]
-    public function itSetsCurrencyOnDataCollector(): void
-    {
-        $container = $this->buildContainer(['currency' => 'EUR']);
-
-        $definition = $container->getDefinition('lunetics_llm_cost_tracking.data_collector');
-
-        self::assertSame('EUR', $definition->getArgument('$currency'));
     }
 
     #[Test]
@@ -109,6 +100,52 @@ final class LuneticsLlmCostTrackingExtensionTest extends TestCase
 
         self::assertSame('GPT-5 (discounted)', $models['gpt-5']->displayName);
         self::assertSame(0.50, $models['gpt-5']->inputPricePerMillion);
+    }
+
+    #[Test]
+    public function itRegistersDynamicPricingProviderWithDefaultTtl(): void
+    {
+        $container = $this->buildContainer([]);
+
+        self::assertTrue($container->hasDefinition('lunetics_llm_cost_tracking.pricing_provider'));
+
+        $definition = $container->getDefinition('lunetics_llm_cost_tracking.pricing_provider');
+        self::assertSame(86400, $definition->getArgument('$ttl'));
+    }
+
+    #[Test]
+    public function itWiresDynamicPricingToRegistryByDefault(): void
+    {
+        $container = $this->buildContainer([]);
+
+        $definition = $container->getDefinition('lunetics_llm_cost_tracking.model_registry');
+        $dynamicPricingArg = $definition->getArgument('$dynamicPricing');
+
+        self::assertInstanceOf(Reference::class, $dynamicPricingArg);
+        self::assertSame('lunetics_llm_cost_tracking.pricing_provider', (string) $dynamicPricingArg);
+    }
+
+    #[Test]
+    public function itDisablesDynamicPricingWhenConfigured(): void
+    {
+        $container = $this->buildContainer(['dynamic_pricing' => ['enabled' => false]]);
+
+        $definition = $container->getDefinition('lunetics_llm_cost_tracking.model_registry');
+        self::assertNull($definition->getArgument('$dynamicPricing'));
+
+        // The provider and its dependent command must be fully removed so that their
+        // unresolvable abstract_args do not break container compilation.
+        self::assertFalse($container->hasDefinition('lunetics_llm_cost_tracking.pricing_provider'));
+        self::assertFalse($container->hasDefinition('lunetics_llm_cost_tracking.update_pricing_command'));
+    }
+
+    #[Test]
+    public function itSetsCustomCacheTtl(): void
+    {
+        $container = $this->buildContainer(['dynamic_pricing' => ['ttl' => 3600]]);
+
+        $definition = $container->getDefinition('lunetics_llm_cost_tracking.pricing_provider');
+        self::assertSame(3600, $definition->getArgument('$ttl'));
     }
 
     /**

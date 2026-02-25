@@ -1,4 +1,4 @@
-.PHONY: install test phpstan cs-check cs-fix ci
+.PHONY: install test test-coverage phpstan cs-check cs-fix ci
 
 PHP_VERSION ?= 8.3
 DOCKER_RUN = docker run --rm -v $$(pwd):/app -w /app
@@ -10,6 +10,9 @@ install: ## Install dependencies
 
 test: ## Run PHPUnit tests
 	$(PHP) vendor/bin/phpunit
+
+test-coverage: ## Run PHPUnit tests with pcov coverage report (requires: docker compose build)
+	docker compose run --rm php vendor/bin/phpunit --coverage-text
 
 phpstan: ## Run PHPStan static analysis
 	$(PHP) vendor/bin/phpstan analyse
