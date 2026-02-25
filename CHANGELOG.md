@@ -16,6 +16,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   > **Upgrade note:** logging is enabled by default. If you do not want production log output,
   > add `logging: { enabled: false }` to your `lunetics_llm_cost_tracking` config.
 
+- **Snapshot pricing baseline** — a bundled `resources/pricing_snapshot.json` now serves as
+  an always-on fallback. When `dynamic_pricing.enabled: true` (default), live API data takes
+  priority and the snapshot fills any gaps. When `dynamic_pricing.enabled: false`, the snapshot
+  is the sole pricing source (no live HTTP calls). User-configured `models:` always override both.
+
+### Changed
+- **`dynamic_pricing.enabled: false` now uses snapshot baseline** instead of providing no
+  fallback at all. Models not in your `models:` config will now resolve from the bundled
+  snapshot rather than returning `null`.
+
+### Breaking Changes
+- **`RefreshablePricingProviderInterface`** gains a new required method `fetchLive(): array`.
+  Any custom implementation of this interface must add the method. It should fetch directly
+  from the live source, throw on failure, and never fall back to cached or snapshot data.
+
 ## [0.1.3] - 2026-02-25
 
 ### Changed

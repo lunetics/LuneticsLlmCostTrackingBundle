@@ -132,9 +132,9 @@ lunetics_llm_cost_tracking:
         enabled: false
 ```
 
-When disabled, only your `models:` config is used — no bundled snapshot and no live fetching. The `lunetics:llm:update-pricing` command is also removed from the container. This is the right choice for fully air-gapped environments where you manage all model pricing explicitly.
+When disabled, the bundled snapshot continues to provide model coverage as a read-only baseline — no live HTTP requests are made, and the `lunetics:llm:update-pricing` command is removed from the container. Your explicit `models:` config always takes priority over the snapshot. This is the right choice for air-gapped or reproducible-pricing environments where you want stable costs without live API calls.
 
-> **Upgrade note:** before v0.3, the bundle shipped a small static list of bundled defaults (gpt-5, claude-sonnet-4-6, etc.) that were available even when dynamic pricing was disabled. Those defaults have been removed. If you had `dynamic_pricing.enabled: false` and relied on models resolving without explicit `models:` config, add those models to your YAML configuration.
+> **Upgrade note (v0.3):** The old static list of bundled defaults has been replaced with a versioned pricing snapshot (`resources/pricing_snapshot.json`). When `dynamic_pricing.enabled: false`, the snapshot serves as an always-on baseline — models that previously returned `null` pricing may now resolve from the snapshot. If you need strict "only my config" behaviour where unknown models always return nothing, add `models:` entries for every model you use and configure your app to treat unresolved models as an error.
 
 ### Adjusting the Cache TTL
 
