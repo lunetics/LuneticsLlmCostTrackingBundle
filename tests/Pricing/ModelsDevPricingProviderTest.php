@@ -9,8 +9,10 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Contracts\Cache\CacheInterface;
+use Symfony\Contracts\HttpClient\ChunkInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\HttpClient\ResponseInterface;
+use Symfony\Contracts\HttpClient\ResponseStreamInterface;
 
 final class ModelsDevPricingProviderTest extends TestCase
 {
@@ -69,10 +71,11 @@ final class ModelsDevPricingProviderTest extends TestCase
     public function itCachesResultsAndDoesNotRefetch(): void
     {
         $response = static::createStub(ResponseInterface::class);
-        $response->method('toArray')->willReturn(self::minimalFixture());
+        $stream = $this->createStream($this->createChunk(self::minimalFixture()), $response);
 
         $httpClient = $this->createMock(HttpClientInterface::class);
         $httpClient->expects($this->once())->method('request')->willReturn($response);
+        $httpClient->method('stream')->willReturn($stream);
 
         $cache = new ArrayAdapter();
         $provider = new ModelsDevPricingProvider($httpClient, $cache, 86400);
@@ -85,10 +88,12 @@ final class ModelsDevPricingProviderTest extends TestCase
     public function itInvalidatesCacheAndRefetches(): void
     {
         $response = static::createStub(ResponseInterface::class);
-        $response->method('toArray')->willReturn(self::minimalFixture());
+        // The same stream instance is reused across both fetches — rewind() resets it.
+        $stream = $this->createStream($this->createChunk(self::minimalFixture()), $response);
 
         $httpClient = $this->createMock(HttpClientInterface::class);
         $httpClient->expects($this->exactly(2))->method('request')->willReturn($response);
+        $httpClient->method('stream')->willReturn($stream);
 
         $cache = new ArrayAdapter();
         $provider = new ModelsDevPricingProvider($httpClient, $cache, 86400);
@@ -150,12 +155,71 @@ final class ModelsDevPricingProviderTest extends TestCase
     private function createProvider(array $apiData, ?CacheInterface $cache = null): ModelsDevPricingProvider
     {
         $response = static::createStub(ResponseInterface::class);
-        $response->method('toArray')->willReturn($apiData);
+        $stream = $this->createStream($this->createChunk($apiData), $response);
 
         $httpClient = static::createStub(HttpClientInterface::class);
         $httpClient->method('request')->willReturn($response);
+        $httpClient->method('stream')->willReturn($stream);
 
         return new ModelsDevPricingProvider($httpClient, $cache ?? new ArrayAdapter(), 86400);
+    }
+
+    /**
+     * Creates a ChunkInterface stub whose getContent() returns the JSON-encoded $data.
+     * Stubs must be configured eagerly (before test execution) — lazy configuration
+     * inside willReturnCallback is unreliable in PHPUnit 11's mock state machine.
+     *
+     * @param array<mixed> $data
+     */
+    private function createChunk(array $data): ChunkInterface
+    {
+        $chunk = static::createStub(ChunkInterface::class);
+        $chunk->method('getContent')->willReturn(json_encode($data, \JSON_THROW_ON_ERROR));
+
+        return $chunk;
+    }
+
+    /**
+     * Creates a ResponseStreamInterface that yields exactly one chunk.
+     * The stream is rewindable, so the same instance can be reused for multiple
+     * getModels() calls (e.g. in cache-invalidation tests).
+     */
+    private function createStream(ChunkInterface $chunk, ResponseInterface $response): ResponseStreamInterface
+    {
+        return new class($chunk, $response) implements ResponseStreamInterface {
+            private bool $valid = true;
+
+            public function __construct(
+                private readonly ChunkInterface $chunk,
+                private readonly ResponseInterface $response,
+            ) {
+            }
+
+            public function current(): ChunkInterface
+            {
+                return $this->chunk;
+            }
+
+            public function key(): ResponseInterface
+            {
+                return $this->response;
+            }
+
+            public function next(): void
+            {
+                $this->valid = false;
+            }
+
+            public function rewind(): void
+            {
+                $this->valid = true;
+            }
+
+            public function valid(): bool
+            {
+                return $this->valid;
+            }
+        };
     }
 
     /** @return array<string, mixed> */
