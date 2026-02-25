@@ -18,6 +18,7 @@ final class ModelsDevPricingProvider implements RefreshablePricingProviderInterf
 {
     private const string API_URL = 'https://models.dev/api.json';
     private const string CACHE_KEY = 'lunetics_llm.models_dev_pricing';
+    private const int MAX_RESPONSE_SIZE = 5 * 1024 * 1024; // 5 MB
 
     public function __construct(
         private readonly HttpClientInterface $httpClient,
@@ -69,8 +70,19 @@ final class ModelsDevPricingProvider implements RefreshablePricingProviderInterf
         $response = $this->httpClient->request('GET', self::API_URL, [
             'timeout' => 10.0,
             'max_duration' => 15.0,
+            'buffer' => false,
         ]);
-        $data = $response->toArray();
+
+        $body = '';
+        foreach ($this->httpClient->stream($response) as $chunk) {
+            $body .= $chunk->getContent();
+            if (\strlen($body) > self::MAX_RESPONSE_SIZE) {
+                throw new \RuntimeException(\sprintf('models.dev API response exceeded the %d byte size limit.', self::MAX_RESPONSE_SIZE));
+            }
+        }
+
+        /** @var array<mixed> $data */
+        $data = json_decode($body, true, 512, \JSON_THROW_ON_ERROR);
 
         $models = [];
         foreach ($data as $providerData) {
