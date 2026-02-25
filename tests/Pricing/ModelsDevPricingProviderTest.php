@@ -78,7 +78,7 @@ final class ModelsDevPricingProviderTest extends TestCase
         $httpClient->method('stream')->willReturn($stream);
 
         $cache = new ArrayAdapter();
-        $provider = new ModelsDevPricingProvider($httpClient, $cache, 86400);
+        $provider = new ModelsDevPricingProvider($httpClient, $cache, 86400, '');
 
         $provider->getModels();
         $provider->getModels(); // second call must hit cache, not HTTP
@@ -96,7 +96,7 @@ final class ModelsDevPricingProviderTest extends TestCase
         $httpClient->method('stream')->willReturn($stream);
 
         $cache = new ArrayAdapter();
-        $provider = new ModelsDevPricingProvider($httpClient, $cache, 86400);
+        $provider = new ModelsDevPricingProvider($httpClient, $cache, 86400, '');
 
         $provider->getModels();
         $provider->invalidate();
@@ -104,14 +104,31 @@ final class ModelsDevPricingProviderTest extends TestCase
     }
 
     #[Test]
-    public function itReturnsEmptyArrayWhenFetchFails(): void
+    public function itReturnsEmptyArrayWhenFetchFailsAndNoSnapshotConfigured(): void
     {
         $httpClient = $this->createMock(HttpClientInterface::class);
         $httpClient->method('request')->willThrowException(new \RuntimeException('API down'));
 
-        $provider = new ModelsDevPricingProvider($httpClient, new ArrayAdapter(), 86400);
+        $provider = new ModelsDevPricingProvider($httpClient, new ArrayAdapter(), 86400, '');
 
         self::assertSame([], $provider->getModels());
+    }
+
+    #[Test]
+    public function itFallsBackToSnapshotOnFetchFailure(): void
+    {
+        $httpClient = $this->createMock(HttpClientInterface::class);
+        $httpClient->method('request')->willThrowException(new \RuntimeException('API down'));
+
+        $snapshotPath = __DIR__.'/../fixtures/pricing_snapshot_minimal.json';
+        $provider = new ModelsDevPricingProvider($httpClient, new ArrayAdapter(), 86400, $snapshotPath);
+
+        $models = $provider->getModels();
+
+        self::assertArrayHasKey('test-model', $models);
+        self::assertSame(1.0, $models['test-model']->inputPricePerMillion);
+        self::assertSame(5.0, $models['test-model']->outputPricePerMillion);
+        self::assertSame('TestProvider', $models['test-model']->provider);
     }
 
     #[Test]
@@ -122,7 +139,7 @@ final class ModelsDevPricingProviderTest extends TestCase
             ->method('request')
             ->willThrowException(new \RuntimeException('API down'));
 
-        $provider = new ModelsDevPricingProvider($httpClient, new ArrayAdapter(), 86400);
+        $provider = new ModelsDevPricingProvider($httpClient, new ArrayAdapter(), 86400, '');
 
         $provider->getModels(); // fails, caches [] with 60s TTL
         $provider->getModels(); // must hit negative cache, not call HTTP again
@@ -152,7 +169,7 @@ final class ModelsDevPricingProviderTest extends TestCase
     }
 
     /** @param array<mixed> $apiData */
-    private function createProvider(array $apiData, ?CacheInterface $cache = null): ModelsDevPricingProvider
+    private function createProvider(array $apiData, ?CacheInterface $cache = null, string $snapshotPath = ''): ModelsDevPricingProvider
     {
         $response = static::createStub(ResponseInterface::class);
         $stream = $this->createStream($this->createChunk($apiData), $response);
@@ -161,7 +178,7 @@ final class ModelsDevPricingProviderTest extends TestCase
         $httpClient->method('request')->willReturn($response);
         $httpClient->method('stream')->willReturn($stream);
 
-        return new ModelsDevPricingProvider($httpClient, $cache ?? new ArrayAdapter(), 86400);
+        return new ModelsDevPricingProvider($httpClient, $cache ?? new ArrayAdapter(), 86400, $snapshotPath);
     }
 
     /**

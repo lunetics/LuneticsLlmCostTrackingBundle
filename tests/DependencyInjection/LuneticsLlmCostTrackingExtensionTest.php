@@ -71,7 +71,7 @@ final class LuneticsLlmCostTrackingExtensionTest extends TestCase
     }
 
     #[Test]
-    public function itMergesUserModelsWithDefaults(): void
+    public function itRegistersUserDefinedModels(): void
     {
         $container = $this->buildContainer([
             'models' => [
@@ -87,22 +87,22 @@ final class LuneticsLlmCostTrackingExtensionTest extends TestCase
         $definition = $container->getDefinition('lunetics_llm_cost_tracking.model_registry');
         $models = $definition->getArgument('$models');
 
-        // Default models should be present
-        self::assertArrayHasKey('gpt-5', $models);
-        self::assertArrayHasKey('claude-sonnet-4-6', $models);
-
-        // User model should be merged in
+        // User model is registered
         self::assertArrayHasKey('custom-model', $models);
+
+        // No bundled defaults — all coverage comes from ModelsDevPricingProvider at runtime
+        self::assertArrayNotHasKey('gpt-5', $models);
+        self::assertArrayNotHasKey('claude-sonnet-4-6', $models);
     }
 
     #[Test]
-    public function itAllowsOverridingDefaultModelPricing(): void
+    public function itWiresUserDefinedModelsToRegistry(): void
     {
         $container = $this->buildContainer([
             'models' => [
-                'gpt-5' => [
-                    'display_name' => 'GPT-5 (discounted)',
-                    'provider' => 'OpenAI',
+                'my-model' => [
+                    'display_name' => 'My Model',
+                    'provider' => 'MyProvider',
                     'input_price_per_million' => 0.50,
                     'output_price_per_million' => 5.00,
                 ],
@@ -112,10 +112,10 @@ final class LuneticsLlmCostTrackingExtensionTest extends TestCase
         $definition = $container->getDefinition('lunetics_llm_cost_tracking.model_registry');
         $models = $definition->getArgument('$models');
 
-        $modelDef = $models['gpt-5'];
+        $modelDef = $models['my-model'];
         self::assertInstanceOf(Definition::class, $modelDef);
         self::assertSame(ModelDefinition::class, $modelDef->getClass());
-        self::assertSame('GPT-5 (discounted)', $modelDef->getArgument('$displayName'));
+        self::assertSame('My Model', $modelDef->getArgument('$displayName'));
         self::assertSame(0.50, $modelDef->getArgument('$inputPricePerMillion'));
     }
 

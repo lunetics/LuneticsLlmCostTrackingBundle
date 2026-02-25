@@ -25,6 +25,9 @@ cs-fix: ## Fix coding standards
 
 ci: cs-check phpstan test ## Run all CI checks
 
+update-snapshot: ## Regenerate resources/pricing_snapshot.json from models.dev
+	$(PHP) bin/generate_snapshot.php
+
 # --- Release targets ---
 
 LATEST_TAG = $(shell git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")

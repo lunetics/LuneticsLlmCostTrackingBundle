@@ -13,6 +13,9 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 /**
  * Fetches and caches model pricing data from https://models.dev.
  * Prices are in USD per 1 million tokens, matching our ModelDefinition format.
+ *
+ * When a live fetch fails, the bundled snapshot at $snapshotPath is used as a
+ * fallback so that known models are still priced correctly during outages.
  */
 final class ModelsDevPricingProvider implements RefreshablePricingProviderInterface
 {
@@ -24,13 +27,15 @@ final class ModelsDevPricingProvider implements RefreshablePricingProviderInterf
         private readonly HttpClientInterface $httpClient,
         private readonly CacheInterface $cache,
         private readonly int $ttl,
+        private readonly string $snapshotPath,
         private readonly ?LoggerInterface $logger = null,
     ) {
     }
 
     /**
      * Returns all models from models.dev, keyed by model ID.
-     * Result is cached for $ttl seconds.
+     * Result is cached for $ttl seconds. On fetch failure, falls back to the
+     * bundled snapshot and short-caches the result to avoid hammering the API.
      *
      * @return array<string, ModelDefinition>
      */
@@ -49,7 +54,7 @@ final class ModelsDevPricingProvider implements RefreshablePricingProviderInterf
                     'exception' => $e,
                 ]);
 
-                return [];
+                return $this->loadSnapshot();
             }
         });
     }
@@ -81,8 +86,41 @@ final class ModelsDevPricingProvider implements RefreshablePricingProviderInterf
             }
         }
 
+        return $this->parseResponseBody($body);
+    }
+
+    /**
+     * Loads the bundled pricing snapshot as a fallback when live fetching fails.
+     *
+     * @return array<string, ModelDefinition>
+     */
+    private function loadSnapshot(): array
+    {
+        if ('' === $this->snapshotPath || !is_file($this->snapshotPath)) {
+            return [];
+        }
+
+        try {
+            $json = file_get_contents($this->snapshotPath);
+            if (false === $json) {
+                return [];
+            }
+
+            return $this->parseResponseBody($json);
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    /**
+     * Parses a models.dev JSON response body (or snapshot) into ModelDefinition instances.
+     *
+     * @return array<string, ModelDefinition>
+     */
+    private function parseResponseBody(string $json): array
+    {
         /** @var array<mixed> $data */
-        $data = json_decode($body, true, 512, \JSON_THROW_ON_ERROR);
+        $data = json_decode($json, true, 512, \JSON_THROW_ON_ERROR);
 
         $models = [];
         foreach ($data as $providerData) {

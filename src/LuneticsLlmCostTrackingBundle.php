@@ -51,6 +51,7 @@ final class LuneticsLlmCostTrackingBundle extends AbstractBundle
                 ->arg('$httpClient', service('http_client'))
                 ->arg('$cache', service('cache.app'))
                 ->arg('$ttl', $config['dynamic_pricing']['ttl'])
+                ->arg('$snapshotPath', \dirname(__DIR__).'/resources/pricing_snapshot.json')
                 ->arg('$logger', service('logger')->nullOnInvalid());
 
             $services->set('lunetics_llm_cost_tracking.update_pricing_command', UpdatePricingCommand::class)
@@ -77,12 +78,14 @@ final class LuneticsLlmCostTrackingBundle extends AbstractBundle
     }
 
     /**
-     * Merges default models with user-configured models.
-     * User config takes precedence over defaults.
+     * Builds DI Definition objects for user-configured models.
      *
      * Returns DI Definition objects (not plain PHP instances) so that the
      * Symfony container compiler can serialize them to XML without hitting
      * the "parameter is an object" restriction in XmlDumper (dev mode).
+     *
+     * Bundled model coverage is provided at runtime by ModelsDevPricingProvider,
+     * which falls back to resources/pricing_snapshot.json when models.dev is unreachable.
      *
      * @param array<string, array<string, mixed>> $userModels
      *
@@ -90,13 +93,8 @@ final class LuneticsLlmCostTrackingBundle extends AbstractBundle
      */
     private function buildModelDefinitions(array $userModels): array
     {
-        /** @var array<string, array<string, mixed>> $defaults */
-        $defaults = require \dirname(__DIR__).'/config/default_models.php';
-
-        $merged = array_replace($defaults, $userModels);
-
         $definitions = [];
-        foreach ($merged as $modelId => $data) {
+        foreach ($userModels as $modelId => $data) {
             $definitions[$modelId] = (new Definition(ModelDefinition::class))
                 ->setArgument('$modelId', $modelId)
                 ->setArgument('$displayName', $data['display_name'])
