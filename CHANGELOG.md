@@ -7,15 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-02-26
+
 ### Added
-- **Monolog cost logging** (`logging` config key, enabled by default). On every request that
-  makes at least one AI call the bundle now logs per-call detail and a summary on
-  `kernel.terminate` via the `ai` Monolog channel. Disable with `logging.enabled: false`;
-  change the channel with `logging.channel: 'your-channel'`.
-
-  > **Upgrade note:** logging is enabled by default. If you do not want production log output,
-  > add `logging: { enabled: false }` to your `lunetics_llm_cost_tracking` config.
-
 - **Snapshot pricing baseline** — a bundled `resources/pricing_snapshot.json` now serves as
   an always-on fallback. When `dynamic_pricing.enabled: true` (default), live API data takes
   priority and the snapshot fills any gaps. When `dynamic_pricing.enabled: false`, the snapshot
@@ -30,6 +24,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`RefreshablePricingProviderInterface`** gains a new required method `fetchLive(): array`.
   Any custom implementation of this interface must add the method. It should fetch directly
   from the live source, throw on failure, and never fall back to cached or snapshot data.
+
+## [0.2.1] - 2026-02-25
+
+### Fixed
+- Format cost context values as decimal strings to avoid scientific notation in Monolog records.
+
+## [0.2.0] - 2026-02-25
+
+### Added
+- **Monolog cost logging** (`logging` config key, disabled by default). On every request that
+  makes at least one AI call the bundle logs per-call detail and a summary on
+  `kernel.terminate` via the `ai` Monolog channel. Enable with `logging: { enabled: true }`;
+  change the channel with `logging.channel: 'your-channel'`.
 
 ## [0.1.3] - 2026-02-25
 
@@ -70,7 +77,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `lunetics:llm:update-pricing` console command
 - Readonly DTOs: `CostSnapshot`, `CostSummary`, `ModelAggregation`, `CallRecord`
 
-[Unreleased]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v0.2.1...v0.3.0
+[0.2.1]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v0.1.0...v0.1.1
