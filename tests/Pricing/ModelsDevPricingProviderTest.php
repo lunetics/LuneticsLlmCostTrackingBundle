@@ -104,7 +104,7 @@ final class ModelsDevPricingProviderTest extends TestCase
     }
 
     #[Test]
-    public function itReturnsEmptyArrayWhenFetchFails(): void
+    public function itReturnsEmptyArrayOnFetchFailure(): void
     {
         $httpClient = $this->createMock(HttpClientInterface::class);
         $httpClient->method('request')->willThrowException(new \RuntimeException('API down'));
@@ -112,6 +112,84 @@ final class ModelsDevPricingProviderTest extends TestCase
         $provider = new ModelsDevPricingProvider($httpClient, new ArrayAdapter(), 86400);
 
         self::assertSame([], $provider->getModels());
+    }
+
+    #[Test]
+    public function itFetchLiveReturnsParsedModelsAndPopulatesCache(): void
+    {
+        $response = static::createStub(ResponseInterface::class);
+        $stream = $this->createStream($this->createChunk(self::minimalFixture()), $response);
+
+        $httpClient = $this->createMock(HttpClientInterface::class);
+        $httpClient->expects($this->once())->method('request')->willReturn($response);
+        $httpClient->method('stream')->willReturn($stream);
+
+        $cache = new ArrayAdapter();
+        $provider = new ModelsDevPricingProvider($httpClient, $cache, 86400);
+
+        $models = $provider->fetchLive();
+
+        self::assertArrayHasKey('gpt-5', $models);
+        self::assertSame(1.25, $models['gpt-5']->inputPricePerMillion);
+
+        // Cache must be warm — second getModels() call must not trigger another HTTP request
+        $provider->getModels();
+    }
+
+    #[Test]
+    public function itFetchLiveThrowsOnApiFailure(): void
+    {
+        $httpClient = $this->createMock(HttpClientInterface::class);
+        $httpClient->method('request')->willThrowException(new \RuntimeException('API down'));
+
+        $provider = new ModelsDevPricingProvider($httpClient, new ArrayAdapter(), 86400);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('API down');
+
+        $provider->fetchLive();
+    }
+
+    #[Test]
+    public function itThrowsExceptionOnOversizedResponse(): void
+    {
+        $chunk = static::createStub(ChunkInterface::class);
+        $chunk->method('getContent')->willReturn(str_repeat('a', 5 * 1024 * 1024 + 1));
+
+        $response = static::createStub(ResponseInterface::class);
+        $stream = $this->createStream($chunk, $response);
+
+        $httpClient = $this->createMock(HttpClientInterface::class);
+        $httpClient->method('request')->willReturn($response);
+        $httpClient->method('stream')->willReturn($stream);
+
+        $provider = new ModelsDevPricingProvider($httpClient, new ArrayAdapter(), 86400);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('exceeded the 5242880 byte size limit');
+
+        $provider->fetchLive();
+    }
+
+    #[Test]
+    public function itGetModelsSwallowsOversizedResponseAndReturnsEmpty(): void
+    {
+        // fetchLive() re-throws on an oversized response; getModels() must swallow it
+        // and return [] with a short negative-cache TTL (same as any other fetch failure).
+        $chunk = static::createStub(ChunkInterface::class);
+        $chunk->method('getContent')->willReturn(str_repeat('a', 5 * 1024 * 1024 + 1));
+
+        $response = static::createStub(ResponseInterface::class);
+        $stream = $this->createStream($chunk, $response);
+
+        $httpClient = $this->createMock(HttpClientInterface::class);
+        $httpClient->expects($this->once())->method('request')->willReturn($response);
+        $httpClient->method('stream')->willReturn($stream);
+
+        $provider = new ModelsDevPricingProvider($httpClient, new ArrayAdapter(), 86400);
+
+        self::assertSame([], $provider->getModels());
+        $provider->getModels(); // must hit negative cache, not re-request
     }
 
     #[Test]

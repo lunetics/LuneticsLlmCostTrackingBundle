@@ -49,13 +49,12 @@ return [
 The bundle resolves pricing for a model using the following priority order:
 
 1. **Your YAML config** — `models:` entries take precedence over everything else
-2. **Bundle defaults** — a curated list of common OpenAI, Anthropic, and Google models ships with the bundle
-3. **Dynamic pricing from models.dev** — for any model not found above, the bundle fetches live pricing from [models.dev](https://models.dev) and caches it for 24 hours
-4. **Not found** — cost is shown as zero with a warning in the profiler
+2. **Dynamic pricing from models.dev** — the bundle fetches live pricing from [models.dev](https://models.dev) (thousands of models) and caches it for 24 hours. When models.dev is unreachable, a bundled snapshot of ~3000 models is used as a fallback so known models are still priced correctly during outages
+3. **Not found** — cost is shown as zero with a warning in the profiler
 
 This means most models work out of the box with no configuration. Your own entries always win.
 
-> **All prices are in USD.** The bundle defaults, the models.dev feed, and any prices you configure are all treated as USD. There is no currency conversion; the `$` prefix shown in the profiler is a literal dollar sign.
+> **All prices are in USD.** The models.dev feed and any prices you configure are all treated as USD. There is no currency conversion; the `$` prefix shown in the profiler is a literal dollar sign.
 
 ## Configuration
 
@@ -67,7 +66,7 @@ lunetics_llm_cost_tracking:
         low: 0.01                 # below = green
         medium: 0.10              # between low/medium = yellow, above = red
     logging:
-        enabled: true             # default: true — log per-request cost data via Monolog
+        enabled: false            # default: false — opt in to log per-request cost data via Monolog
         channel: 'ai'             # Monolog channel (default: 'ai'); route it via your handlers
     dynamic_pricing:
         enabled: true             # default: true — fetch live pricing from models.dev
@@ -84,8 +83,15 @@ lunetics_llm_cost_tracking:
 
 ### Logging
 
-By default the bundle logs per-request LLM cost data via Monolog on the `ai` channel. Each request
-that makes at least one AI call produces:
+Logging is **disabled by default**. Enable it explicitly to have per-request LLM cost data written via Monolog:
+
+```yaml
+lunetics_llm_cost_tracking:
+    logging:
+        enabled: true
+```
+
+Each request that makes at least one AI call produces:
 
 - one `info` log per call (model, provider, token breakdown, cost)
 - one `info` summary log (total calls, cost, tokens)
@@ -108,14 +114,6 @@ monolog:
 
 If the `ai` channel is not explicitly configured, logs fall through to your default handler.
 
-To disable logging entirely:
-
-```yaml
-lunetics_llm_cost_tracking:
-    logging:
-        enabled: false
-```
-
 To use a different channel name:
 
 ```yaml
@@ -134,7 +132,9 @@ lunetics_llm_cost_tracking:
         enabled: false
 ```
 
-When disabled, only bundle defaults and your `models:` config are used. The `lunetics:llm:update-pricing` command is also removed from the container.
+When disabled, the bundled snapshot continues to provide model coverage as a read-only baseline — no live HTTP requests are made, and the `lunetics:llm:update-pricing` command is removed from the container. Your explicit `models:` config always takes priority over the snapshot. This is the right choice for air-gapped or reproducible-pricing environments where you want stable costs without live API calls.
+
+> **Upgrade note (v0.3):** The old static list of bundled defaults has been replaced with a versioned pricing snapshot (`resources/pricing_snapshot.json`). When `dynamic_pricing.enabled: false`, the snapshot serves as an always-on baseline — models that previously returned `null` pricing may now resolve from the snapshot. If you need strict "only my config" behaviour where unknown models always return nothing, add `models:` entries for every model you use and configure your app to treat unresolved models as an error.
 
 ### Adjusting the Cache TTL
 
@@ -164,17 +164,19 @@ php bin/console lunetics:llm:update-pricing --verbose
 
 The command exits with a non-zero status if the API is unreachable or returns no models, making it safe to use in deployment pipelines.
 
-## Bundled Model Defaults
+## Model Coverage
 
-The bundle ships with default pricing for common models so they work without any `models:` configuration. The model string passed to `$platform->invoke()` (e.g. `'gpt-5'`) is the same string the bundle uses to look up pricing.
+The bundle ships a versioned snapshot of the [models.dev](https://models.dev) catalogue (~3000 models across ~100 providers) as `resources/pricing_snapshot.json`. This snapshot is used as a fallback when the live API is unreachable, so pricing works correctly even in offline or air-gapped environments.
 
-| Provider | Models with bundled pricing |
-|----------|---------------------------|
-| OpenAI | `gpt-5`, `gpt-5-mini`, `gpt-4o-mini`, `gpt-4.1-mini` |
-| Anthropic | `claude-sonnet-4-6`, `claude-opus-4-6` (incl. cached input and thinking tokens) |
-| Google | `gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-3-flash-preview`, `gemini-3-pro-preview` |
+The snapshot is regenerated before each release. To regenerate it locally:
 
-Any model not listed above is resolved automatically via [models.dev](https://models.dev) dynamic pricing (when enabled).
+```bash
+make update-snapshot
+# or directly:
+php bin/generate_snapshot.php
+```
+
+The model string passed to `$platform->invoke()` (e.g. `'gpt-5'`) is the same string the bundle uses to look up pricing.
 
 ### Example: OpenAI GPT
 
@@ -191,11 +193,11 @@ symfony_ai:
 $result = $platform->invoke('gpt-5', 'Explain Symfony in one sentence.');
 ```
 
-No `lunetics_llm_cost_tracking` config is needed — `gpt-5` is in the bundled defaults. Costs appear automatically in the profiler toolbar. The same applies to Anthropic and Google models listed above.
+No `lunetics_llm_cost_tracking` config is needed — `gpt-5` is covered by dynamic pricing (or the bundled snapshot when offline). Costs appear automatically in the profiler toolbar.
 
 ### Overriding or Adding Model Pricing
 
-If you use a model that isn't in the defaults or on models.dev (e.g. a fine-tuned or self-hosted model), add it to your config:
+If you use a model that isn't on models.dev (e.g. a fine-tuned or self-hosted model), add it to your config:
 
 ```yaml
 lunetics_llm_cost_tracking:
@@ -260,12 +262,13 @@ Where `regular_input_tokens = max(0, input_tokens - cached_tokens)`.
 A Docker-based Makefile is provided for local development:
 
 ```bash
-make install    # Install dependencies
-make test       # Run PHPUnit tests
-make phpstan    # Run PHPStan (level 8)
-make cs-check   # Check coding standards
-make cs-fix     # Fix coding standards
-make ci         # Run all checks
+make install          # Install dependencies
+make test             # Run PHPUnit tests
+make phpstan          # Run PHPStan (level 8)
+make cs-check         # Check coding standards
+make cs-fix           # Fix coding standards
+make ci               # Run all checks
+make update-snapshot  # Regenerate resources/pricing_snapshot.json from models.dev
 ```
 
 Override the PHP version with `PHP_VERSION=8.2 make test`.

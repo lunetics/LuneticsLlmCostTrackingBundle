@@ -122,6 +122,14 @@ final class LlmCostCollectorTest extends TestCase
         );
     }
 
+    #[Test]
+    public function itReturnsName(): void
+    {
+        $collector = $this->createCollector();
+
+        self::assertSame('lunetics_llm_cost_tracking', $collector->getName());
+    }
+
     private function createCollector(
         ?CostTrackerInterface $costTracker = null,
         CostThresholds $costThresholds = new CostThresholds(0.01, 0.10),

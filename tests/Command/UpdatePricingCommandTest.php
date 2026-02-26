@@ -45,13 +45,14 @@ final class UpdatePricingCommandTest extends TestCase
     }
 
     #[Test]
-    public function itInvalidatesCacheBeforeFetching(): void
+    public function itCallsFetchLiveNotGetModels(): void
     {
         $models = ['gpt-5' => new ModelDefinition('gpt-5', 'GPT-5', 'OpenAI', 1.25, 10.0)];
 
         $provider = $this->createMock(RefreshablePricingProviderInterface::class);
-        $provider->expects($this->once())->method('invalidate');
-        $provider->method('getModels')->willReturn($models);
+        $provider->expects($this->once())->method('fetchLive')->willReturn($models);
+        $provider->expects($this->never())->method('getModels');
+        $provider->expects($this->never())->method('invalidate');
 
         $tester = new CommandTester(new UpdatePricingCommand($provider));
         $tester->execute([]);
@@ -73,7 +74,7 @@ final class UpdatePricingCommandTest extends TestCase
     public function itReturnsFailureOnException(): void
     {
         $provider = $this->createMock(RefreshablePricingProviderInterface::class);
-        $provider->method('getModels')->willThrowException(new \RuntimeException('Connection refused'));
+        $provider->method('fetchLive')->willThrowException(new \RuntimeException('Connection refused'));
 
         $tester = new CommandTester(new UpdatePricingCommand($provider));
         $tester->execute([]);
@@ -82,11 +83,26 @@ final class UpdatePricingCommandTest extends TestCase
         self::assertStringContainsString('Failed', $tester->getDisplay());
     }
 
+    #[Test]
+    public function itShowsExceptionTraceInVeryVerboseMode(): void
+    {
+        $provider = $this->createMock(RefreshablePricingProviderInterface::class);
+        $provider->method('fetchLive')->willThrowException(new \RuntimeException('Connection refused trace'));
+
+        $tester = new CommandTester(new UpdatePricingCommand($provider));
+        $tester->execute([], ['verbosity' => OutputInterface::VERBOSITY_VERY_VERBOSE]);
+
+        self::assertSame(Command::FAILURE, $tester->getStatusCode());
+        self::assertStringContainsString('Connection refused trace', $tester->getDisplay());
+        // In very verbose mode, the exception trace is cast to string and outputted.
+        self::assertStringContainsString('RuntimeException: Connection refused trace', $tester->getDisplay());
+    }
+
     /** @param array<string, ModelDefinition> $models */
     private function createProvider(array $models): RefreshablePricingProviderInterface
     {
         $provider = $this->createMock(RefreshablePricingProviderInterface::class);
-        $provider->method('getModels')->willReturn($models);
+        $provider->method('fetchLive')->willReturn($models);
 
         return $provider;
     }

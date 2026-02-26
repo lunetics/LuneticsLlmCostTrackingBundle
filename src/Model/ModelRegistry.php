@@ -12,15 +12,15 @@ final class ModelRegistry implements ModelRegistryInterface
     /** @var array<string, ModelDefinition> */
     private array $models = [];
 
-    /** @var array<string, ModelDefinition>|null Memoized dynamic models for the lifetime of this instance. */
+    /** @var array<string, ModelDefinition>|null Memoized pricing provider models for the lifetime of this instance. */
     private ?array $dynamicCache = null;
 
     /**
-     * @param array<string, ModelDefinition> $models user-configured and bundle-default models
+     * @param array<string, ModelDefinition> $models user-configured models (from the models: config key)
      */
     public function __construct(
         array $models = [],
-        private readonly ?PricingProviderInterface $dynamicPricing = null,
+        private readonly ?PricingProviderInterface $pricingProvider = null,
         private readonly ?LoggerInterface $logger = null,
     ) {
         foreach ($models as $modelId => $definition) {
@@ -34,12 +34,12 @@ final class ModelRegistry implements ModelRegistryInterface
             return $this->models[$modelId];
         }
 
-        if (null !== $this->dynamicPricing) {
+        if (null !== $this->pricingProvider) {
             if (null === $this->dynamicCache) {
                 try {
-                    $this->dynamicCache = $this->dynamicPricing->getModels();
+                    $this->dynamicCache = $this->pricingProvider->getModels();
                 } catch (\Throwable $e) {
-                    $this->logger?->warning('Failed to fetch dynamic LLM pricing from models.dev.', [
+                    $this->logger?->warning('Failed to fetch LLM pricing from provider.', [
                         'exception' => $e,
                     ]);
                     // Memoize the failure so subsequent lookups within the same instance
@@ -55,8 +55,8 @@ final class ModelRegistry implements ModelRegistryInterface
     }
 
     /**
-     * Returns locally registered models (user config + bundle defaults).
-     * Does not include models only available via dynamic pricing.
+     * Returns user-configured models (from the models: config key).
+     * Does not include models only available via the pricing provider.
      *
      * @return array<string, ModelDefinition>
      */

@@ -15,7 +15,7 @@ test-coverage: ## Run PHPUnit tests with pcov coverage report (requires: docker 
 	docker compose run --rm php vendor/bin/phpunit --coverage-text
 
 phpstan: ## Run PHPStan static analysis
-	$(PHP) vendor/bin/phpstan analyse
+	$(PHP) vendor/bin/phpstan analyse --memory-limit 256M
 
 cs-check: ## Check coding standards (dry-run)
 	$(PHP) vendor/bin/php-cs-fixer check
@@ -24,6 +24,9 @@ cs-fix: ## Fix coding standards
 	$(PHP) vendor/bin/php-cs-fixer fix
 
 ci: cs-check phpstan test ## Run all CI checks
+
+update-snapshot: ## Regenerate resources/pricing_snapshot.json from models.dev
+	$(PHP) bin/generate_snapshot.php
 
 # --- Release targets ---
 

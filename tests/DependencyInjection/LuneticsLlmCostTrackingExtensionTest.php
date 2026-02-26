@@ -71,7 +71,7 @@ final class LuneticsLlmCostTrackingExtensionTest extends TestCase
     }
 
     #[Test]
-    public function itMergesUserModelsWithDefaults(): void
+    public function itRegistersUserDefinedModels(): void
     {
         $container = $this->buildContainer([
             'models' => [
@@ -87,22 +87,22 @@ final class LuneticsLlmCostTrackingExtensionTest extends TestCase
         $definition = $container->getDefinition('lunetics_llm_cost_tracking.model_registry');
         $models = $definition->getArgument('$models');
 
-        // Default models should be present
-        self::assertArrayHasKey('gpt-5', $models);
-        self::assertArrayHasKey('claude-sonnet-4-6', $models);
-
-        // User model should be merged in
+        // User model is registered
         self::assertArrayHasKey('custom-model', $models);
+
+        // No bundled defaults — all coverage comes from the pricing provider at runtime
+        self::assertArrayNotHasKey('gpt-5', $models);
+        self::assertArrayNotHasKey('claude-sonnet-4-6', $models);
     }
 
     #[Test]
-    public function itAllowsOverridingDefaultModelPricing(): void
+    public function itWiresUserDefinedModelsToRegistry(): void
     {
         $container = $this->buildContainer([
             'models' => [
-                'gpt-5' => [
-                    'display_name' => 'GPT-5 (discounted)',
-                    'provider' => 'OpenAI',
+                'my-model' => [
+                    'display_name' => 'My Model',
+                    'provider' => 'MyProvider',
                     'input_price_per_million' => 0.50,
                     'output_price_per_million' => 5.00,
                 ],
@@ -112,10 +112,10 @@ final class LuneticsLlmCostTrackingExtensionTest extends TestCase
         $definition = $container->getDefinition('lunetics_llm_cost_tracking.model_registry');
         $models = $definition->getArgument('$models');
 
-        $modelDef = $models['gpt-5'];
+        $modelDef = $models['my-model'];
         self::assertInstanceOf(Definition::class, $modelDef);
         self::assertSame(ModelDefinition::class, $modelDef->getClass());
-        self::assertSame('GPT-5 (discounted)', $modelDef->getArgument('$displayName'));
+        self::assertSame('My Model', $modelDef->getArgument('$displayName'));
         self::assertSame(0.50, $modelDef->getArgument('$inputPricePerMillion'));
     }
 
@@ -131,15 +131,35 @@ final class LuneticsLlmCostTrackingExtensionTest extends TestCase
     }
 
     #[Test]
+    public function itAlwaysRegistersSnapshotProvider(): void
+    {
+        // Present when dynamic pricing is enabled (default)
+        $containerEnabled = $this->buildContainer([]);
+        self::assertTrue($containerEnabled->hasDefinition('lunetics_llm_cost_tracking.snapshot_provider'));
+
+        // Also present when dynamic pricing is disabled
+        $containerDisabled = $this->buildContainer(['dynamic_pricing' => ['enabled' => false]]);
+        self::assertTrue($containerDisabled->hasDefinition('lunetics_llm_cost_tracking.snapshot_provider'));
+    }
+
+    #[Test]
+    public function itRegistersChainProviderWhenDynamicPricingEnabled(): void
+    {
+        $container = $this->buildContainer([]);
+
+        self::assertTrue($container->hasDefinition('lunetics_llm_cost_tracking.chain_provider'));
+    }
+
+    #[Test]
     public function itWiresDynamicPricingToRegistryByDefault(): void
     {
         $container = $this->buildContainer([]);
 
         $definition = $container->getDefinition('lunetics_llm_cost_tracking.model_registry');
-        $dynamicPricingArg = $definition->getArgument('$dynamicPricing');
+        $pricingProviderArg = $definition->getArgument('$pricingProvider');
 
-        self::assertInstanceOf(Reference::class, $dynamicPricingArg);
-        self::assertSame('lunetics_llm_cost_tracking.pricing_provider', (string) $dynamicPricingArg);
+        self::assertInstanceOf(Reference::class, $pricingProviderArg);
+        self::assertSame('lunetics_llm_cost_tracking.chain_provider', (string) $pricingProviderArg);
     }
 
     #[Test]
@@ -148,18 +168,30 @@ final class LuneticsLlmCostTrackingExtensionTest extends TestCase
         $container = $this->buildContainer(['dynamic_pricing' => ['enabled' => false]]);
 
         $definition = $container->getDefinition('lunetics_llm_cost_tracking.model_registry');
-        self::assertNull($definition->getArgument('$dynamicPricing'));
+        $pricingProviderArg = $definition->getArgument('$pricingProvider');
 
-        // The provider and its dependent command must be fully removed so that their
-        // unresolvable abstract_args do not break container compilation.
+        // Snapshot is wired as the sole provider when dynamic pricing is disabled
+        self::assertInstanceOf(Reference::class, $pricingProviderArg);
+        self::assertSame('lunetics_llm_cost_tracking.snapshot_provider', (string) $pricingProviderArg);
+
+        // The live API provider, chain provider, and update command must be fully absent
         self::assertFalse($container->hasDefinition('lunetics_llm_cost_tracking.pricing_provider'));
+        self::assertFalse($container->hasDefinition('lunetics_llm_cost_tracking.chain_provider'));
         self::assertFalse($container->hasDefinition('lunetics_llm_cost_tracking.update_pricing_command'));
     }
 
     #[Test]
-    public function itRegistersLoggingListenerByDefaultWithAiChannel(): void
+    public function itLoggingIsDisabledByDefault(): void
     {
         $container = $this->buildContainer([]);
+
+        self::assertFalse($container->hasDefinition('lunetics_llm_cost_tracking.cost_logger_listener'));
+    }
+
+    #[Test]
+    public function itRegistersLoggingListenerWhenExplicitlyEnabled(): void
+    {
+        $container = $this->buildContainer(['logging' => ['enabled' => true]]);
 
         self::assertTrue($container->hasDefinition('lunetics_llm_cost_tracking.cost_logger_listener'));
 
@@ -187,13 +219,22 @@ final class LuneticsLlmCostTrackingExtensionTest extends TestCase
     #[Test]
     public function itAppliesCustomLoggingChannel(): void
     {
-        $container = $this->buildContainer(['logging' => ['channel' => 'llm']]);
+        $container = $this->buildContainer(['logging' => ['enabled' => true, 'channel' => 'llm']]);
 
         $definition = $container->getDefinition('lunetics_llm_cost_tracking.cost_logger_listener');
 
         $monologTags = $definition->getTag('monolog.logger');
         self::assertCount(1, $monologTags);
         self::assertSame('llm', $monologTags[0]['channel']);
+    }
+
+    #[Test]
+    public function itThrowsExceptionWhenLoggingChannelIsEmpty(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('The "lunetics_llm_cost_tracking.logging.channel" value cannot be empty when logging is enabled.');
+
+        $this->buildContainer(['logging' => ['enabled' => true, 'channel' => '']]);
     }
 
     #[Test]

@@ -29,8 +29,10 @@ final class UpdatePricingCommand extends Command
         $io->title('Updating LLM Pricing from models.dev');
 
         try {
-            $this->pricingProvider->invalidate();
-            $models = $this->pricingProvider->getModels();
+            // fetchLive() contacts the API directly and throws on any failure.
+            // It never falls back to the bundled snapshot, so an empty or failed
+            // response is always surfaced here rather than silently served from cache.
+            $models = $this->pricingProvider->fetchLive();
 
             if (0 === \count($models)) {
                 $io->error('No models loaded from models.dev. The API may be unavailable or returned empty data.');

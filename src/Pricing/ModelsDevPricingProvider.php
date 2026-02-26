@@ -13,6 +13,10 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 /**
  * Fetches and caches model pricing data from https://models.dev.
  * Prices are in USD per 1 million tokens, matching our ModelDefinition format.
+ *
+ * On fetch failure, returns an empty array cached for 60 s so the application
+ * does not hammer the API during an outage. Callers that need a fallback
+ * (e.g. ChainPricingProvider) are responsible for providing one.
  */
 final class ModelsDevPricingProvider implements RefreshablePricingProviderInterface
 {
@@ -30,7 +34,7 @@ final class ModelsDevPricingProvider implements RefreshablePricingProviderInterf
 
     /**
      * Returns all models from models.dev, keyed by model ID.
-     * Result is cached for $ttl seconds.
+     * Result is cached for $ttl seconds. Returns [] on fetch failure (cached 60 s).
      *
      * @return array<string, ModelDefinition>
      */
@@ -42,12 +46,10 @@ final class ModelsDevPricingProvider implements RefreshablePricingProviderInterf
             try {
                 return $this->fetch();
             } catch (\Throwable $e) {
-                // Cache the failure briefly to avoid hammering the API on outages.
-                // The command (invalidate + getModels) can force a retry.
-                $item->expiresAfter(60);
                 $this->logger?->warning('Failed to fetch dynamic LLM pricing from models.dev.', [
                     'exception' => $e,
                 ]);
+                $item->expiresAfter(60);
 
                 return [];
             }
@@ -60,6 +62,30 @@ final class ModelsDevPricingProvider implements RefreshablePricingProviderInterf
     public function invalidate(): void
     {
         $this->cache->delete(self::CACHE_KEY);
+    }
+
+    /**
+     * Fetches fresh pricing from the live API, writes it to the cache, and returns the models.
+     * Throws on any failure — never falls back to a snapshot.
+     *
+     * @return array<string, ModelDefinition>
+     *
+     * @throws \Throwable on HTTP failure, timeout, size limit, or invalid API response
+     */
+    public function fetchLive(): array
+    {
+        $models = $this->fetch();
+
+        // Replace whatever is in the cache with the fresh live result so that
+        // subsequent getModels() calls serve it without a further HTTP round-trip.
+        $this->cache->delete(self::CACHE_KEY);
+        $this->cache->get(self::CACHE_KEY, function (ItemInterface $item) use ($models): array {
+            $item->expiresAfter($this->ttl);
+
+            return $models;
+        });
+
+        return $models;
     }
 
     /**
@@ -81,46 +107,6 @@ final class ModelsDevPricingProvider implements RefreshablePricingProviderInterf
             }
         }
 
-        /** @var array<mixed> $data */
-        $data = json_decode($body, true, 512, \JSON_THROW_ON_ERROR);
-
-        $models = [];
-        foreach ($data as $providerData) {
-            if (!\is_array($providerData) || !isset($providerData['name'], $providerData['models']) || !\is_array($providerData['models'])) {
-                continue;
-            }
-
-            $providerName = (string) $providerData['name'];
-
-            foreach ($providerData['models'] as $modelId => $modelData) {
-                if (!\is_array($modelData) || !isset($modelData['cost']) || !\is_array($modelData['cost'])) {
-                    continue;
-                }
-
-                $cost = $modelData['cost'];
-
-                if (!isset($cost['input'], $cost['output'])) {
-                    continue;
-                }
-
-                // First provider to define a model ID wins; later providers (e.g. resellers)
-                // are skipped so canonical pricing takes precedence.
-                if (isset($models[(string) $modelId])) {
-                    continue;
-                }
-
-                $models[(string) $modelId] = new ModelDefinition(
-                    modelId: (string) $modelId,
-                    displayName: isset($modelData['name']) && \is_string($modelData['name']) ? $modelData['name'] : (string) $modelId,
-                    provider: $providerName,
-                    inputPricePerMillion: (float) $cost['input'],
-                    outputPricePerMillion: (float) $cost['output'],
-                    cachedInputPricePerMillion: isset($cost['cache_read']) ? (float) $cost['cache_read'] : null,
-                    thinkingPricePerMillion: isset($cost['reasoning']) ? (float) $cost['reasoning'] : null,
-                );
-            }
-        }
-
-        return $models;
+        return ModelsDevResponseParser::parse($body);
     }
 }
