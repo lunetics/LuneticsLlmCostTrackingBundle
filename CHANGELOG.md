@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-05-27
+
+### Fixed
+- **Compatibility with `symfony/ai` 0.8 and 0.9.** Two upstream BC breaks combined to crash
+  the WebProfilerBundle toolbar render on `kernel.terminate`, surfacing as the misleading
+  "headers already sent" downstream error:
+  - `TraceablePlatform` moved from `Symfony\AI\AiBundle\Profiler\` to `Symfony\AI\Platform\`
+    in symfony/ai 0.7 (autoload failure on upgrade).
+  - The `public $calls` property became `private` in 0.8, accessed via a new `getCalls()`
+    method (fatal "cannot access private property" on every LLM call).
+
+  `CostTracker` now imports the new namespace and reads calls via `getCalls()`. The
+  call-data shape (`'model'`/`'input'`/`'options'`/`'result'`) and the `ai.traceable_platform`
+  service tag are unchanged across 0.4–0.9, so no further migration is required. The 0.9
+  message-content changes (`MultiPartResult`, `ThinkingResult`, variadic `AssistantMessage`)
+  do not affect this bundle because it only reads `metadata.token_usage`.
+
+### Breaking Changes
+- **Minimum `symfony/ai-bundle` and `symfony/ai-platform` raised from `>=0.4.0` to `>=0.8.0`.**
+  Users on `symfony/ai` 0.4.x–0.7.x must either pin this bundle to `^0.3` or upgrade
+  symfony/ai. Composer will now refuse to install on incompatible versions instead of
+  letting a runtime fatal happen during profiler rendering.
+
 ## [0.3.0] - 2026-02-26
 
 ### Added
