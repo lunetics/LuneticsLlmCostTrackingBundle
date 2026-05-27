@@ -9,8 +9,8 @@ use Lunetics\LlmCostTrackingBundle\Model\CostSnapshot;
 use Lunetics\LlmCostTrackingBundle\Model\CostSummary;
 use Lunetics\LlmCostTrackingBundle\Model\ModelAggregation;
 use Lunetics\LlmCostTrackingBundle\Model\ModelRegistryInterface;
-use Symfony\AI\AiBundle\Profiler\TraceablePlatform;
 use Symfony\AI\Platform\TokenUsage\TokenUsageInterface;
+use Symfony\AI\Platform\TraceablePlatform;
 use Symfony\Contracts\Service\ResetInterface;
 
 final class CostTracker implements CostTrackerInterface, ResetInterface
@@ -75,7 +75,7 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
         $totalCost = 0.0;
 
         foreach ($this->platforms as $platform) {
-            foreach ($platform->calls as $call) {
+            foreach ($platform->getCalls() as $call) {
                 try {
                     $result = $call['result']->getResult();
                     $metadata = $result->getMetadata();

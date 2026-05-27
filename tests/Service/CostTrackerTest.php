@@ -11,7 +11,6 @@ use Lunetics\LlmCostTrackingBundle\Service\CostCalculator;
 use Lunetics\LlmCostTrackingBundle\Service\CostTracker;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-use Symfony\AI\AiBundle\Profiler\TraceablePlatform;
 use Symfony\AI\Platform\Metadata\Metadata;
 use Symfony\AI\Platform\PlatformInterface;
 use Symfony\AI\Platform\Result\DeferredResult;
@@ -20,6 +19,7 @@ use Symfony\AI\Platform\Result\ResultInterface;
 use Symfony\AI\Platform\ResultConverterInterface;
 use Symfony\AI\Platform\TokenUsage\TokenUsage;
 use Symfony\AI\Platform\TokenUsage\TokenUsageInterface;
+use Symfony\AI\Platform\TraceablePlatform;
 
 final class CostTrackerTest extends TestCase
 {
@@ -301,7 +301,7 @@ final class CostTrackerTest extends TestCase
         self::assertSame(1, $firstSnapshot->totals->calls);
 
         // Simulate a new request in a long-running runtime
-        $platform->calls = [];
+        $platform->reset();
         $tracker->reset();
 
         $secondSnapshot = $tracker->getSnapshot();
@@ -324,18 +324,36 @@ final class CostTrackerTest extends TestCase
     }
 
     /**
-     * @param list<array{model: string, input: string, options: array<string, mixed>, result: DeferredResult}> $calls
+     * @param list<array{model: non-empty-string, input: string, options: array<string, mixed>, result: DeferredResult}> $calls
      */
     private function createPlatform(array $calls): TraceablePlatform
     {
-        $platform = new TraceablePlatform(static::createStub(PlatformInterface::class));
-        $platform->calls = $calls;
+        // In symfony/ai 0.8+, TraceablePlatform::$calls is private and only populated
+        // via invoke(). We stub the inner platform to return our pre-built
+        // DeferredResults in sequence, then drive the traceable wrapper to record them.
+        $deferredResults = array_column($calls, 'result');
+        $index = 0;
+
+        $inner = static::createStub(PlatformInterface::class);
+        $inner->method('invoke')->willReturnCallback(
+            static function () use (&$index, $deferredResults): DeferredResult {
+                return $deferredResults[$index++];
+            },
+        );
+
+        $platform = new TraceablePlatform($inner);
+
+        foreach ($calls as $call) {
+            $platform->invoke($call['model'], $call['input'], $call['options']);
+        }
 
         return $platform;
     }
 
     /**
-     * @return array{model: string, input: string, options: array<string, mixed>, result: DeferredResult}
+     * @param non-empty-string $model
+     *
+     * @return array{model: non-empty-string, input: string, options: array<string, mixed>, result: DeferredResult}
      */
     private function createCall(string $model, ?TokenUsageInterface $tokenUsage = null): array
     {
@@ -365,7 +383,9 @@ final class CostTrackerTest extends TestCase
     }
 
     /**
-     * @return array{model: string, input: string, options: array<string, mixed>, result: DeferredResult}
+     * @param non-empty-string $model
+     *
+     * @return array{model: non-empty-string, input: string, options: array<string, mixed>, result: DeferredResult}
      */
     private function createFailingCall(string $model): array
     {
