@@ -176,7 +176,7 @@ make update-snapshot
 php bin/generate_snapshot.php
 ```
 
-The model string passed to `$platform->invoke()` (e.g. `'gpt-5'`) is the same string the bundle uses to look up pricing.
+The model string passed to `$platform->invoke()` (e.g. `'gpt-5'`) is the same string the bundle uses to look up pricing. When a `Model` object is passed instead (supported since symfony/ai-platform 0.10), the bundle uses its `getName()` value for the lookup.
 
 ### Example: OpenAI GPT
 

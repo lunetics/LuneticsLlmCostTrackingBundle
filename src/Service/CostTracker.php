@@ -9,6 +9,8 @@ use Lunetics\LlmCostTrackingBundle\Model\CostSnapshot;
 use Lunetics\LlmCostTrackingBundle\Model\CostSummary;
 use Lunetics\LlmCostTrackingBundle\Model\ModelAggregation;
 use Lunetics\LlmCostTrackingBundle\Model\ModelRegistryInterface;
+use Psr\Log\LoggerInterface;
+use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\TokenUsage\TokenUsageInterface;
 use Symfony\AI\Platform\TraceablePlatform;
 use Symfony\Contracts\Service\ResetInterface;
@@ -25,6 +27,7 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
         iterable $platforms,
         private readonly ModelRegistryInterface $modelRegistry,
         private readonly CostCalculatorInterface $costCalculator,
+        private readonly ?LoggerInterface $logger = null,
     ) {
         $this->platforms = $platforms instanceof \Traversable ? iterator_to_array($platforms) : $platforms;
     }
@@ -80,42 +83,61 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
                     $result = $call['result']->getResult();
                     $metadata = $result->getMetadata();
                     $tokenUsage = $metadata->get('token_usage');
-                } catch (\Throwable) {
-                    // Skip malformed or failed calls — don't crash the entire profiler
+
+                    $modelString = $this->resolveModelName($call['model']);
+                    $modelDefinition = $this->modelRegistry->get($modelString);
+
+                    $inputTokens = 0;
+                    $outputTokens = 0;
+                    $thinkingTokens = 0;
+                    $cachedTokens = 0;
+                    $callTotalTokens = 0;
+
+                    if ($tokenUsage instanceof TokenUsageInterface) {
+                        $inputTokens = $tokenUsage->getPromptTokens() ?? 0;
+                        $outputTokens = $tokenUsage->getCompletionTokens() ?? 0;
+                        $thinkingTokens = $tokenUsage->getThinkingTokens() ?? 0;
+                        $cachedTokens = $tokenUsage->getCachedTokens() ?? 0;
+                        $callTotalTokens = $tokenUsage->getTotalTokens() ?? ($inputTokens + $outputTokens);
+                    }
+
+                    if (null !== $modelDefinition) {
+                        $cost = $this->costCalculator->calculateCost(
+                            $modelDefinition,
+                            $inputTokens,
+                            $outputTokens,
+                            $cachedTokens,
+                            $thinkingTokens,
+                        );
+                        $displayName = $modelDefinition->displayName;
+                        $provider = $modelDefinition->provider;
+                    } else {
+                        $cost = 0.0;
+                        $displayName = $modelString;
+                        $provider = 'Unknown';
+                    }
+                } catch (\Throwable $e) {
+                    // Skip malformed/failed calls, and calls where a user-supplied
+                    // ModelRegistryInterface or CostCalculatorInterface implementation
+                    // throws (both are advertised, replaceable extension points) —
+                    // the entire per-call computation lives inside this guard, before
+                    // any of the aggregation writes below, so a throw here can never
+                    // leave partial data in $calls/$byModel/the totals. Don't crash
+                    // the profiler panel or kernel.terminate cost logging; log the
+                    // skip instead, so a systematically throwing extension point does
+                    // not silently present as "no LLM calls were made".
+                    try {
+                        $this->logger?->warning('Skipped an LLM call in cost tracking; a per-call computation step threw.', [
+                            'exception' => $e,
+                            'model' => $this->resolveModelName($call['model']),
+                        ]);
+                    } catch (\Throwable) {
+                        // Logging must never make a skipped call fatal.
+                    }
                     continue;
                 }
 
-                $modelString = $call['model'];
-                $modelDefinition = $this->modelRegistry->get($modelString);
-
-                $inputTokens = 0;
-                $outputTokens = 0;
-                $thinkingTokens = 0;
-                $cachedTokens = 0;
-                $callTotalTokens = 0;
-
-                if ($tokenUsage instanceof TokenUsageInterface) {
-                    $inputTokens = $tokenUsage->getPromptTokens() ?? 0;
-                    $outputTokens = $tokenUsage->getCompletionTokens() ?? 0;
-                    $thinkingTokens = $tokenUsage->getThinkingTokens() ?? 0;
-                    $cachedTokens = $tokenUsage->getCachedTokens() ?? 0;
-                    $callTotalTokens = $tokenUsage->getTotalTokens() ?? ($inputTokens + $outputTokens);
-                }
-
-                if (null !== $modelDefinition) {
-                    $cost = $this->costCalculator->calculateCost(
-                        $modelDefinition,
-                        $inputTokens,
-                        $outputTokens,
-                        $cachedTokens,
-                        $thinkingTokens,
-                    );
-                    $displayName = $modelDefinition->displayName;
-                    $provider = $modelDefinition->provider;
-                } else {
-                    $cost = 0.0;
-                    $displayName = $modelString;
-                    $provider = 'Unknown';
+                if (null === $modelDefinition) {
                     $unconfiguredModels[$modelString] = true;
                 }
 
@@ -181,5 +203,19 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
             ),
             unconfiguredModels: array_keys($unconfiguredModels),
         );
+    }
+
+    /**
+     * TraceablePlatform::invoke() has accepted `string|Model` since
+     * symfony/ai-platform 0.10 and stores whatever was passed in unnormalized,
+     * but its `@phpstan-type PlatformCallData` docblock still declares
+     * `model: string`. Written inline at the read site, the instanceof check
+     * is therefore rejected as `instanceof.alwaysFalse` (PHPStan trusts the
+     * stale vendor PHPDoc); this helper boundary gives the check an honest
+     * parameter type instead.
+     */
+    private function resolveModelName(string|Model $model): string
+    {
+        return $model instanceof Model ? $model->getName() : $model;
     }
 }

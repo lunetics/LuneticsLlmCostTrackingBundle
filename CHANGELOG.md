@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **`TypeError` when the platform is invoked with a `Model` object.** Since symfony/ai-platform
+  0.10, `Platform::invoke()` also accepts a fully defined `Model` instance and
+  `TraceablePlatform` records it unnormalized, while upstream's `PlatformCallData` phpstan-type
+  still declares `model: string` — so static analysis cannot flag the mismatch. `CostTracker`
+  passed the recorded value straight into `ModelRegistry::get(string)`, crashing the profiler
+  panel and cost logging (debug mode only) for the whole request as soon as any call used a
+  `Model` object. Recorded `Model` instances are now resolved to their `getName()` string
+  before the registry lookup. Verified against symfony/ai 0.13: the full suite runs green on
+  v0.13.0, and no other integration surface (`TraceablePlatform`, `TokenUsageInterface`,
+  `ai.traceable_platform` tag) changed between 0.9 and 0.13.
+- **A throwing user-supplied `ModelRegistryInterface` or `CostCalculatorInterface` implementation
+  crashed the profiler and cost logging for the whole request.** Both interfaces are advertised,
+  user-replaceable extension points (custom pricing lookups, custom cost formulas), but the
+  per-call guard covered only the result and metadata retrieval — a throw from `get()` or
+  `calculateCost()` propagated uncaught. The per-call skip guard now covers the entire per-call
+  computation, so a throwing extension point skips only that one call; the remaining calls are
+  aggregated normally and nothing crashes. Each skipped call is logged as a warning (when a
+  logger is available), so a systematically throwing extension point does not silently present
+  as "no LLM calls were made".
+
 ## [0.4.0] - 2026-05-27
 
 ### Fixed
