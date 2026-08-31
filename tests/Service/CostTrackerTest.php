@@ -12,6 +12,7 @@ use Lunetics\LlmCostTrackingBundle\Service\CostTracker;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Metadata\Metadata;
+use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\PlatformInterface;
 use Symfony\AI\Platform\Result\DeferredResult;
 use Symfony\AI\Platform\Result\RawResultInterface;
@@ -308,6 +309,36 @@ final class CostTrackerTest extends TestCase
         self::assertSame(0, $secondSnapshot->totals->calls);
     }
 
+    #[Test]
+    public function itNormalizesAModelObjectRecordedByTraceablePlatform(): void
+    {
+        $this->skipUnlessModelObjectSupported();
+
+        // symfony/ai-platform >=0.10 lets Platform::invoke() accept a Model
+        // OBJECT instead of a string; TraceablePlatform stores it unnormalized
+        // as call['model']. CostTracker must resolve it to the model name.
+        $platform = $this->createPlatformWithModelObject(
+            new Model('gpt-5'),
+            new TokenUsage(1000, 500, null, null, null, null, null, null, 1500),
+        );
+
+        $tracker = $this->createTracker([$platform]);
+
+        $totals = $tracker->getTotals();
+        self::assertSame(1, $totals->calls);
+        self::assertSame(1000, $totals->inputTokens);
+        self::assertSame(500, $totals->outputTokens);
+
+        $calls = $tracker->getCalls();
+        self::assertSame('gpt-5', $calls[0]->model);
+        self::assertSame('GPT-5', $calls[0]->displayName);
+        self::assertSame('OpenAI', $calls[0]->provider);
+
+        $byModel = $tracker->getByModel();
+        self::assertArrayHasKey('gpt-5', $byModel);
+        self::assertSame(1, $byModel['gpt-5']->calls);
+    }
+
     /** @param TraceablePlatform[] $platforms */
     private function createTracker(array $platforms): CostTracker
     {
@@ -399,5 +430,42 @@ final class CostTrackerTest extends TestCase
             'options' => [],
             'result' => new DeferredResult($converter, static::createStub(RawResultInterface::class)),
         ];
+    }
+
+    /**
+     * The --prefer-lowest CI lane installs symfony/ai-platform 0.8.0, where
+     * TraceablePlatform::invoke() still declares `string $model` only —
+     * invoking it with a Model object there would be a genuine TypeError,
+     * not the defect this test targets. Skip instead of asserting a
+     * version constraint we don't otherwise depend on.
+     */
+    private function skipUnlessModelObjectSupported(): void
+    {
+        $modelParameterType = (new \ReflectionMethod(TraceablePlatform::class, 'invoke'))
+            ->getParameters()[0]
+            ->getType();
+
+        if ($modelParameterType instanceof \ReflectionUnionType) {
+            foreach ($modelParameterType->getTypes() as $namedType) {
+                if ($namedType instanceof \ReflectionNamedType && Model::class === $namedType->getName()) {
+                    return;
+                }
+            }
+        }
+
+        self::markTestSkipped('The installed symfony/ai-platform version does not accept a Model object in TraceablePlatform::invoke().');
+    }
+
+    private function createPlatformWithModelObject(Model $model, ?TokenUsageInterface $tokenUsage = null): TraceablePlatform
+    {
+        $deferredResult = $this->createDeferredResult($tokenUsage);
+
+        $inner = static::createStub(PlatformInterface::class);
+        $inner->method('invoke')->willReturn($deferredResult);
+
+        $platform = new TraceablePlatform($inner);
+        $platform->invoke($model, 'test input', []);
+
+        return $platform;
     }
 }

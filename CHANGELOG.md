@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **`TypeError` when the platform is invoked with a `Model` object.** Since symfony/ai-platform
+  0.10, `Platform::invoke()` also accepts a fully defined `Model` instance and
+  `TraceablePlatform` records it unnormalized, while upstream's `PlatformCallData` phpstan-type
+  still declares `model: string` — so static analysis cannot flag the mismatch. `CostTracker`
+  passed the recorded value straight into `ModelRegistry::get(string)`, crashing the profiler
+  panel and cost logging (debug mode only) for the whole request as soon as any call used a
+  `Model` object. Recorded `Model` instances are now resolved to their `getName()` string
+  before the registry lookup. Verified against symfony/ai 0.13: the full suite runs green on
+  v0.13.0, and no other integration surface (`TraceablePlatform`, `TokenUsageInterface`,
+  `ai.traceable_platform` tag) changed between 0.9 and 0.13.
+
 ## [0.4.0] - 2026-05-27
 
 ### Fixed

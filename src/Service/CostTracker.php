@@ -9,6 +9,7 @@ use Lunetics\LlmCostTrackingBundle\Model\CostSnapshot;
 use Lunetics\LlmCostTrackingBundle\Model\CostSummary;
 use Lunetics\LlmCostTrackingBundle\Model\ModelAggregation;
 use Lunetics\LlmCostTrackingBundle\Model\ModelRegistryInterface;
+use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\TokenUsage\TokenUsageInterface;
 use Symfony\AI\Platform\TraceablePlatform;
 use Symfony\Contracts\Service\ResetInterface;
@@ -85,7 +86,7 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
                     continue;
                 }
 
-                $modelString = $call['model'];
+                $modelString = $this->resolveModelName($call['model']);
                 $modelDefinition = $this->modelRegistry->get($modelString);
 
                 $inputTokens = 0;
@@ -181,5 +182,19 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
             ),
             unconfiguredModels: array_keys($unconfiguredModels),
         );
+    }
+
+    /**
+     * Upstream's PlatformCallData docblock (TraceablePlatform) still declares
+     * `model: string`, but TraceablePlatform::invoke() has accepted
+     * `string|Model` since symfony/ai-platform 0.10 and stores whatever was
+     * passed in unnormalized. Accepting `mixed` here — rather than
+     * `string|Model` — deliberately steps outside that stale docblock type so
+     * PHPStan evaluates the instanceof check on its own merits instead of
+     * flagging it as always-false against the outdated shape.
+     */
+    private function resolveModelName(mixed $model): string
+    {
+        return $model instanceof Model ? $model->getName() : (string) $model;
     }
 }
