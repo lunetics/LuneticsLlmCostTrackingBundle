@@ -9,6 +9,7 @@ use Lunetics\LlmCostTrackingBundle\Model\CostSnapshot;
 use Lunetics\LlmCostTrackingBundle\Model\CostSummary;
 use Lunetics\LlmCostTrackingBundle\Model\ModelAggregation;
 use Lunetics\LlmCostTrackingBundle\Model\ModelRegistryInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\TokenUsage\TokenUsageInterface;
 use Symfony\AI\Platform\TraceablePlatform;
@@ -26,6 +27,7 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
         iterable $platforms,
         private readonly ModelRegistryInterface $modelRegistry,
         private readonly CostCalculatorInterface $costCalculator,
+        private readonly ?LoggerInterface $logger = null,
     ) {
         $this->platforms = $platforms instanceof \Traversable ? iterator_to_array($platforms) : $platforms;
     }
@@ -114,14 +116,19 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
                         $displayName = $modelString;
                         $provider = 'Unknown';
                     }
-                } catch (\Throwable) {
+                } catch (\Throwable $e) {
                     // Skip malformed/failed calls, and calls where a user-supplied
                     // ModelRegistryInterface or CostCalculatorInterface implementation
                     // throws (both are advertised, replaceable extension points) —
                     // the entire per-call computation lives inside this guard, before
                     // any of the aggregation writes below, so a throw here can never
                     // leave partial data in $calls/$byModel/the totals. Don't crash
-                    // the profiler panel or kernel.terminate cost logging.
+                    // the profiler panel or kernel.terminate cost logging; log the
+                    // skip instead, so a systematically throwing extension point does
+                    // not silently present as "no LLM calls were made".
+                    $this->logger?->warning('Skipped an LLM call in cost tracking; a per-call computation step threw.', [
+                        'exception' => $e,
+                    ]);
                     continue;
                 }
 

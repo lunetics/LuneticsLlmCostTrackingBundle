@@ -13,6 +13,7 @@ use Lunetics\LlmCostTrackingBundle\Service\CostCalculatorInterface;
 use Lunetics\LlmCostTrackingBundle\Service\CostTracker;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 use Symfony\AI\Platform\Metadata\Metadata;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\PlatformInterface;
@@ -246,6 +247,24 @@ final class CostTrackerTest extends TestCase
         self::assertSame('claude-sonnet-4-6', $calls[0]->model);
 
         self::assertArrayNotHasKey('gpt-5', $tracker->getByModel());
+    }
+
+    #[Test]
+    public function itLogsSkippedCallsWhenLoggerIsProvided(): void
+    {
+        $platform = $this->createPlatform([
+            $this->createCall('broken-model', new TokenUsage(promptTokens: 1000, completionTokens: 500, totalTokens: 1500)),
+        ]);
+
+        $registry = static::createStub(ModelRegistryInterface::class);
+        $registry->method('get')->willThrowException(new \RuntimeException('registry lookup exploded'));
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('warning');
+
+        $tracker = new CostTracker([$platform], $registry, new CostCalculator(), $logger);
+
+        self::assertSame(0, $tracker->getTotals()->calls);
     }
 
     #[Test]
