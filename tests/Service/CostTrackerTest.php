@@ -268,6 +268,24 @@ final class CostTrackerTest extends TestCase
     }
 
     #[Test]
+    public function itDoesNotLetALoggerFailureEscapeTheSkipPath(): void
+    {
+        $platform = $this->createPlatform([
+            $this->createCall('broken-model', new TokenUsage(promptTokens: 1000, completionTokens: 500, totalTokens: 1500)),
+        ]);
+
+        $registry = static::createStub(ModelRegistryInterface::class);
+        $registry->method('get')->willThrowException(new \RuntimeException('registry lookup exploded'));
+
+        $logger = static::createStub(LoggerInterface::class);
+        $logger->method('warning')->willThrowException(new \RuntimeException('logger exploded too'));
+
+        $tracker = new CostTracker([$platform], $registry, new CostCalculator(), $logger);
+
+        self::assertSame(0, $tracker->getTotals()->calls);
+    }
+
+    #[Test]
     public function itCalculatesCostWithThinkingAndCachedTokens(): void
     {
         // claude-sonnet-4-6: input=3.00, output=15.00, cached=0.30, thinking=15.00

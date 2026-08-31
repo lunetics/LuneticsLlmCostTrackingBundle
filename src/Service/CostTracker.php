@@ -126,9 +126,14 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
                     // the profiler panel or kernel.terminate cost logging; log the
                     // skip instead, so a systematically throwing extension point does
                     // not silently present as "no LLM calls were made".
-                    $this->logger?->warning('Skipped an LLM call in cost tracking; a per-call computation step threw.', [
-                        'exception' => $e,
-                    ]);
+                    try {
+                        $this->logger?->warning('Skipped an LLM call in cost tracking; a per-call computation step threw.', [
+                            'exception' => $e,
+                            'model' => $this->resolveModelName($call['model']),
+                        ]);
+                    } catch (\Throwable) {
+                        // Logging must never make a skipped call fatal.
+                    }
                     continue;
                 }
 
