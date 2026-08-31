@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   before the registry lookup. Verified against symfony/ai 0.13: the full suite runs green on
   v0.13.0, and no other integration surface (`TraceablePlatform`, `TokenUsageInterface`,
   `ai.traceable_platform` tag) changed between 0.9 and 0.13.
+- **A throwing user-supplied `ModelRegistryInterface` or `CostCalculatorInterface` implementation
+  crashed the profiler and cost logging for the whole request.** Both interfaces are advertised,
+  user-replaceable extension points (custom pricing lookups, custom cost formulas), but only the
+  token-usage extraction around them was guarded against exceptions — a throw from `get()` or
+  `calculateCost()` propagated uncaught. The per-call skip guard now covers the entire per-call
+  computation, so a throwing extension point skips only that one call; the remaining calls are
+  aggregated normally and nothing crashes.
 
 ## [0.4.0] - 2026-05-27
 

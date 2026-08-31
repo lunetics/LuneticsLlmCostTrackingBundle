@@ -6,8 +6,10 @@ namespace Lunetics\LlmCostTrackingBundle\Tests\Service;
 
 use Lunetics\LlmCostTrackingBundle\Model\ModelDefinition;
 use Lunetics\LlmCostTrackingBundle\Model\ModelRegistry;
+use Lunetics\LlmCostTrackingBundle\Model\ModelRegistryInterface;
 use Lunetics\LlmCostTrackingBundle\Pricing\PricingProviderInterface;
 use Lunetics\LlmCostTrackingBundle\Service\CostCalculator;
+use Lunetics\LlmCostTrackingBundle\Service\CostCalculatorInterface;
 use Lunetics\LlmCostTrackingBundle\Service\CostTracker;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -164,6 +166,86 @@ final class CostTrackerTest extends TestCase
         $totals = $tracker->getTotals();
         self::assertSame(1, $totals->calls);
         self::assertSame(1000, $totals->inputTokens);
+    }
+
+    #[Test]
+    public function itSkipsCallsWhereModelRegistryThrows(): void
+    {
+        $platform = $this->createPlatform([
+            $this->createCall('broken-model', new TokenUsage(promptTokens: 1000, completionTokens: 500, totalTokens: 1500)),
+            $this->createCall('gpt-5', new TokenUsage(promptTokens: 2000, completionTokens: 1000, totalTokens: 3000)),
+        ]);
+
+        $registry = new class implements ModelRegistryInterface {
+            public function get(string $modelId): ?ModelDefinition
+            {
+                if ('broken-model' === $modelId) {
+                    throw new \RuntimeException('registry lookup exploded');
+                }
+
+                if ('gpt-5' === $modelId) {
+                    return new ModelDefinition($modelId, 'GPT-5', 'OpenAI', 1.25, 10.00);
+                }
+
+                return null;
+            }
+        };
+
+        $tracker = new CostTracker([$platform], $registry, new CostCalculator());
+
+        $totals = $tracker->getTotals();
+        self::assertSame(1, $totals->calls);
+        self::assertSame(2000, $totals->inputTokens);
+
+        $calls = $tracker->getCalls();
+        self::assertCount(1, $calls);
+        self::assertSame('gpt-5', $calls[0]->model);
+
+        self::assertArrayNotHasKey('broken-model', $tracker->getByModel());
+        self::assertSame([], $tracker->getUnconfiguredModels());
+    }
+
+    #[Test]
+    public function itSkipsCallsWhereCostCalculatorThrows(): void
+    {
+        $platform = $this->createPlatform([
+            $this->createCall('gpt-5', new TokenUsage(promptTokens: 1000, completionTokens: 500, totalTokens: 1500)),
+            $this->createCall('claude-sonnet-4-6', new TokenUsage(promptTokens: 2000, completionTokens: 1000, totalTokens: 3000)),
+        ]);
+
+        $registry = new ModelRegistry([
+            'gpt-5' => new ModelDefinition('gpt-5', 'GPT-5', 'OpenAI', 1.25, 10.00),
+            'claude-sonnet-4-6' => new ModelDefinition('claude-sonnet-4-6', 'Claude Sonnet 4.6', 'Anthropic', 3.00, 15.00),
+        ]);
+
+        $calculator = new class implements CostCalculatorInterface {
+            public function calculateCost(
+                ModelDefinition $model,
+                int $inputTokens,
+                int $outputTokens,
+                int $cachedTokens = 0,
+                int $thinkingTokens = 0,
+            ): float {
+                if ('gpt-5' === $model->modelId) {
+                    throw new \RuntimeException('cost calculator exploded');
+                }
+
+                return ($inputTokens / 1_000_000 * $model->inputPricePerMillion)
+                    + ($outputTokens / 1_000_000 * $model->outputPricePerMillion);
+            }
+        };
+
+        $tracker = new CostTracker([$platform], $registry, $calculator);
+
+        $totals = $tracker->getTotals();
+        self::assertSame(1, $totals->calls);
+        self::assertSame(2000, $totals->inputTokens);
+
+        $calls = $tracker->getCalls();
+        self::assertCount(1, $calls);
+        self::assertSame('claude-sonnet-4-6', $calls[0]->model);
+
+        self::assertArrayNotHasKey('gpt-5', $tracker->getByModel());
     }
 
     #[Test]

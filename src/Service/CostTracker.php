@@ -81,42 +81,51 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
                     $result = $call['result']->getResult();
                     $metadata = $result->getMetadata();
                     $tokenUsage = $metadata->get('token_usage');
+
+                    $modelString = $this->resolveModelName($call['model']);
+                    $modelDefinition = $this->modelRegistry->get($modelString);
+
+                    $inputTokens = 0;
+                    $outputTokens = 0;
+                    $thinkingTokens = 0;
+                    $cachedTokens = 0;
+                    $callTotalTokens = 0;
+
+                    if ($tokenUsage instanceof TokenUsageInterface) {
+                        $inputTokens = $tokenUsage->getPromptTokens() ?? 0;
+                        $outputTokens = $tokenUsage->getCompletionTokens() ?? 0;
+                        $thinkingTokens = $tokenUsage->getThinkingTokens() ?? 0;
+                        $cachedTokens = $tokenUsage->getCachedTokens() ?? 0;
+                        $callTotalTokens = $tokenUsage->getTotalTokens() ?? ($inputTokens + $outputTokens);
+                    }
+
+                    if (null !== $modelDefinition) {
+                        $cost = $this->costCalculator->calculateCost(
+                            $modelDefinition,
+                            $inputTokens,
+                            $outputTokens,
+                            $cachedTokens,
+                            $thinkingTokens,
+                        );
+                        $displayName = $modelDefinition->displayName;
+                        $provider = $modelDefinition->provider;
+                    } else {
+                        $cost = 0.0;
+                        $displayName = $modelString;
+                        $provider = 'Unknown';
+                    }
                 } catch (\Throwable) {
-                    // Skip malformed or failed calls — don't crash the entire profiler
+                    // Skip malformed/failed calls, and calls where a user-supplied
+                    // ModelRegistryInterface or CostCalculatorInterface implementation
+                    // throws (both are advertised, replaceable extension points) —
+                    // the entire per-call computation lives inside this guard, before
+                    // any of the aggregation writes below, so a throw here can never
+                    // leave partial data in $calls/$byModel/the totals. Don't crash
+                    // the profiler panel or kernel.terminate cost logging.
                     continue;
                 }
 
-                $modelString = $this->resolveModelName($call['model']);
-                $modelDefinition = $this->modelRegistry->get($modelString);
-
-                $inputTokens = 0;
-                $outputTokens = 0;
-                $thinkingTokens = 0;
-                $cachedTokens = 0;
-                $callTotalTokens = 0;
-
-                if ($tokenUsage instanceof TokenUsageInterface) {
-                    $inputTokens = $tokenUsage->getPromptTokens() ?? 0;
-                    $outputTokens = $tokenUsage->getCompletionTokens() ?? 0;
-                    $thinkingTokens = $tokenUsage->getThinkingTokens() ?? 0;
-                    $cachedTokens = $tokenUsage->getCachedTokens() ?? 0;
-                    $callTotalTokens = $tokenUsage->getTotalTokens() ?? ($inputTokens + $outputTokens);
-                }
-
-                if (null !== $modelDefinition) {
-                    $cost = $this->costCalculator->calculateCost(
-                        $modelDefinition,
-                        $inputTokens,
-                        $outputTokens,
-                        $cachedTokens,
-                        $thinkingTokens,
-                    );
-                    $displayName = $modelDefinition->displayName;
-                    $provider = $modelDefinition->provider;
-                } else {
-                    $cost = 0.0;
-                    $displayName = $modelString;
-                    $provider = 'Unknown';
+                if (null === $modelDefinition) {
                     $unconfiguredModels[$modelString] = true;
                 }
 
