@@ -319,7 +319,7 @@ final class CostTrackerTest extends TestCase
         // as call['model']. CostTracker must resolve it to the model name.
         $platform = $this->createPlatformWithModelObject(
             new Model('gpt-5'),
-            new TokenUsage(1000, 500, null, null, null, null, null, null, 1500),
+            new TokenUsage(promptTokens: 1000, completionTokens: 500, totalTokens: 1500),
         );
 
         $tracker = $this->createTracker([$platform]);
@@ -328,6 +328,9 @@ final class CostTrackerTest extends TestCase
         self::assertSame(1, $totals->calls);
         self::assertSame(1000, $totals->inputTokens);
         self::assertSame(500, $totals->outputTokens);
+        self::assertSame(1500, $totals->totalTokens);
+        // (1000/1M * 1.25) + (500/1M * 10.00) = 0.00125 + 0.005 = 0.00625
+        self::assertSame(0.00625, $totals->cost);
 
         $calls = $tracker->getCalls();
         self::assertSame('gpt-5', $calls[0]->model);

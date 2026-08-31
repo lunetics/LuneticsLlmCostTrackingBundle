@@ -185,16 +185,16 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
     }
 
     /**
-     * Upstream's PlatformCallData docblock (TraceablePlatform) still declares
-     * `model: string`, but TraceablePlatform::invoke() has accepted
-     * `string|Model` since symfony/ai-platform 0.10 and stores whatever was
-     * passed in unnormalized. Accepting `mixed` here — rather than
-     * `string|Model` — deliberately steps outside that stale docblock type so
-     * PHPStan evaluates the instanceof check on its own merits instead of
-     * flagging it as always-false against the outdated shape.
+     * TraceablePlatform::invoke() has accepted `string|Model` since
+     * symfony/ai-platform 0.10 and stores whatever was passed in unnormalized,
+     * but its `@phpstan-type PlatformCallData` docblock still declares
+     * `model: string`. Written inline at the read site, the instanceof check
+     * is therefore rejected as `instanceof.alwaysFalse` (PHPStan trusts the
+     * stale vendor PHPDoc); this helper boundary gives the check an honest
+     * parameter type instead.
      */
-    private function resolveModelName(mixed $model): string
+    private function resolveModelName(string|Model $model): string
     {
-        return $model instanceof Model ? $model->getName() : (string) $model;
+        return $model instanceof Model ? $model->getName() : $model;
     }
 }
