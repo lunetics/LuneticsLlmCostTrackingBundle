@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-01
+
+### Added
+- **`CostTracker` accepts an optional PSR-3 logger** (fourth constructor argument, default `null`,
+  wired automatically to the app logger). Calls skipped by the per-call guard are reported as one
+  warning each, carrying the exception and the resolved model name; a throwing logger
+  implementation is itself guarded and can never make a skipped call fatal.
+
 ### Fixed
 - **`TypeError` when the platform is invoked with a `Model` object.** Since symfony/ai-platform
   0.10, `Platform::invoke()` also accepts a fully defined `Model` instance and
@@ -121,7 +129,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `lunetics:llm:update-pricing` console command
 - Readonly DTOs: `CostSnapshot`, `CostSummary`, `ModelAggregation`, `CallRecord`
 
-[Unreleased]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v0.1.3...v0.2.0
