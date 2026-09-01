@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Skipped-calls notice in the Profiler panel.** Calls that `CostTracker` skips because a per-call
+  computation step threw (see the `v0.5.0` fix below) previously vanished from the profiler
+  without a trace — `totals.calls` only counts successfully processed calls, so a developer
+  debugging "why does the panel show less cost than expected" had no signal in the panel itself.
+  `CostTrackerInterface::getSkippedCalls()` now exposes each skipped call as a `SkippedCall`
+  (model, exception class, exception message), and the panel renders a "Skipped Calls" counter
+  plus a capped detail list (first 10, with a "…and N more" tail) mirroring the existing
+  "Unconfigured models detected" notice. The exception message is shown unfiltered — a deliberate
+  trade-off: a poorly written exception could in principle leak sensitive data into the message,
+  but this is mitigated only by the panel's existing `kernel.debug`-only gating, not by any new
+  redaction in this bundle.
+
 ## [0.5.0] - 2026-09-01
 
 ### Added

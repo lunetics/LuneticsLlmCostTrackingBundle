@@ -76,7 +76,7 @@
     {% set budgetWarning = collector.budgetWarning %}
     {% set overBudget = budgetWarning is not null and totals.cost > budgetWarning %}
 
-    {% if totals.calls == 0 %}
+    {% if totals.calls == 0 and collector.skippedCalls|length == 0 %}
         <div class="empty">
             <p>No LLM calls were made during this request.</p>
         </div>
@@ -95,6 +95,22 @@
                 <strong>Unconfigured models detected:</strong>
                 {{ collector.unconfiguredModels|join(', ') }}.
                 Tokens are tracked but costs show as $0.00. Add pricing in <code>lunetics_llm_cost_tracking.models</code>.
+            </div>
+        {% endif %}
+
+        {# Skipped call warnings #}
+        {% if collector.skippedCalls|length > 0 %}
+            <div class="notice notice-warning">
+                <strong>{{ collector.skippedCalls|length }} call{{ collector.skippedCalls|length != 1 ? 's' }} skipped:</strong>
+                A per-call cost computation step threw for the following calls; they are excluded from the totals above.
+                <ul>
+                    {% for skipped in collector.skippedCalls|slice(0, 10) %}
+                        <li>{{ skipped.model ?? 'unknown' }} &mdash; {{ skipped.exceptionClass }}: {{ skipped.exceptionMessage }}</li>
+                    {% endfor %}
+                    {% if collector.skippedCalls|length > 10 %}
+                        <li>&hellip;and {{ collector.skippedCalls|length - 10 }} more</li>
+                    {% endif %}
+                </ul>
             </div>
         {% endif %}
 
@@ -121,6 +137,15 @@
                     <span class="label">Output Tokens</span>
                 </div>
             </div>
+            {% if collector.skippedCalls|length > 0 %}
+                <div class="metric-divider"></div>
+                <div class="metric-group">
+                    <div class="metric">
+                        <span class="value">{{ collector.skippedCalls|length }}</span>
+                        <span class="label">Skipped Calls</span>
+                    </div>
+                </div>
+            {% endif %}
         </section>
 
         {# Per-model aggregation #}

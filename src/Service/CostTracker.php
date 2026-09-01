@@ -9,6 +9,7 @@ use Lunetics\LlmCostTrackingBundle\Model\CostSnapshot;
 use Lunetics\LlmCostTrackingBundle\Model\CostSummary;
 use Lunetics\LlmCostTrackingBundle\Model\ModelAggregation;
 use Lunetics\LlmCostTrackingBundle\Model\ModelRegistryInterface;
+use Lunetics\LlmCostTrackingBundle\Model\SkippedCall;
 use Psr\Log\LoggerInterface;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\TokenUsage\TokenUsageInterface;
@@ -52,6 +53,11 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
         return $this->compute()->unconfiguredModels;
     }
 
+    public function getSkippedCalls(): array
+    {
+        return $this->compute()->skippedCalls;
+    }
+
     public function getSnapshot(): CostSnapshot
     {
         return $this->compute();
@@ -71,6 +77,7 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
         $calls = [];
         $byModel = [];
         $unconfiguredModels = [];
+        $skippedCalls = [];
         $totalCalls = 0;
         $totalInputTokens = 0;
         $totalOutputTokens = 0;
@@ -127,12 +134,20 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
                     // skip instead, so a systematically throwing extension point does
                     // not silently present as "no LLM calls were made".
                     try {
+                        $skippedModel = $this->resolveModelName($call['model']);
                         $this->logger?->warning('Skipped an LLM call in cost tracking; a per-call computation step threw.', [
                             'exception' => $e,
-                            'model' => $this->resolveModelName($call['model']),
+                            'model' => $skippedModel,
                         ]);
+                        $skippedCalls[] = new SkippedCall(
+                            model: $skippedModel,
+                            exceptionClass: $e::class,
+                            exceptionMessage: $e->getMessage(),
+                        );
                     } catch (\Throwable) {
-                        // Logging must never make a skipped call fatal.
+                        // Recording diagnostics about a skip must never itself make
+                        // the skip fatal — $e->getMessage() is Throwable-typed as
+                        // string but a subclass could still override it and throw.
                     }
                     continue;
                 }
@@ -202,6 +217,7 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
                 cost: round($totalCost, 6),
             ),
             unconfiguredModels: array_keys($unconfiguredModels),
+            skippedCalls: $skippedCalls,
         );
     }
 

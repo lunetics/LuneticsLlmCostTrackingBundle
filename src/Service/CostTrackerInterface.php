@@ -8,6 +8,7 @@ use Lunetics\LlmCostTrackingBundle\Model\CallRecord;
 use Lunetics\LlmCostTrackingBundle\Model\CostSnapshot;
 use Lunetics\LlmCostTrackingBundle\Model\CostSummary;
 use Lunetics\LlmCostTrackingBundle\Model\ModelAggregation;
+use Lunetics\LlmCostTrackingBundle\Model\SkippedCall;
 
 interface CostTrackerInterface
 {
@@ -21,6 +22,9 @@ interface CostTrackerInterface
 
     /** @return list<string> */
     public function getUnconfiguredModels(): array;
+
+    /** @return list<SkippedCall> */
+    public function getSkippedCalls(): array;
 
     /**
      * Returns all tracked data as a consistent point-in-time snapshot.

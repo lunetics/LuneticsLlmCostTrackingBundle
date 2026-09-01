@@ -36,6 +36,7 @@ final class CostLoggerListenerTest extends TestCase
                 byModel: [],
                 totals: new CostSummary(0, 0, 0, 0, 0.0),
                 unconfiguredModels: [],
+                skippedCalls: [],
             ),
             logger: $logger,
         );
@@ -106,6 +107,7 @@ final class CostLoggerListenerTest extends TestCase
                 byModel: [],
                 totals: $totals,
                 unconfiguredModels: [],
+                skippedCalls: [],
             ),
             logger: $logger,
         );
@@ -146,6 +148,7 @@ final class CostLoggerListenerTest extends TestCase
                 byModel: [],
                 totals: new CostSummary(1, 100, 50, 150, 0.0),
                 unconfiguredModels: ['unknown-model', 'other-model'],
+                skippedCalls: [],
             ),
             logger: $logger,
         );
@@ -178,6 +181,7 @@ final class CostLoggerListenerTest extends TestCase
                 byModel: [],
                 totals: new CostSummary(1, 100, 50, 150, 0.001),
                 unconfiguredModels: [],
+                skippedCalls: [],
             ),
             logger: $logger,
         );
@@ -222,6 +226,7 @@ final class CostLoggerListenerTest extends TestCase
                 byModel: [],
                 totals: new CostSummary(1, 100, 50, 150, 0.001),
                 unconfiguredModels: [],
+                skippedCalls: [],
             ),
             logger: $logger,
         );

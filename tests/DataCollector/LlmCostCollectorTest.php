@@ -79,6 +79,7 @@ final class LlmCostCollectorTest extends TestCase
             byModel: $expectedByModel,
             totals: $expectedTotals,
             unconfiguredModels: $expectedUnconfigured,
+            skippedCalls: [],
         );
 
         $costTracker = $this->createMock(CostTrackerInterface::class);
@@ -142,6 +143,7 @@ final class LlmCostCollectorTest extends TestCase
                 byModel: [],
                 totals: new CostSummary(0, 0, 0, 0, 0.0),
                 unconfiguredModels: [],
+                skippedCalls: [],
             ));
         }
 
