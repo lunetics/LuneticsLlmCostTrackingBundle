@@ -8,6 +8,7 @@ use Lunetics\LlmCostTrackingBundle\Model\CallRecord;
 use Lunetics\LlmCostTrackingBundle\Model\CostSummary;
 use Lunetics\LlmCostTrackingBundle\Model\CostThresholds;
 use Lunetics\LlmCostTrackingBundle\Model\ModelAggregation;
+use Lunetics\LlmCostTrackingBundle\Model\SkippedCall;
 use Lunetics\LlmCostTrackingBundle\Service\CostTrackerInterface;
 use Symfony\Bundle\FrameworkBundle\DataCollector\AbstractDataCollector;
 use Symfony\Component\HttpFoundation\Request;
@@ -72,6 +73,12 @@ final class LlmCostCollector extends AbstractDataCollector implements LateDataCo
     public function getUnconfiguredModels(): array
     {
         return $this->data['snapshot']->unconfiguredModels ?? [];
+    }
+
+    /** @return list<SkippedCall> */
+    public function getSkippedCalls(): array
+    {
+        return $this->data['snapshot']->skippedCalls ?? [];
     }
 
     public function getCostThresholds(): CostThresholds

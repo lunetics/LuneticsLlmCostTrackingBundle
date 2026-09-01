@@ -10,6 +10,7 @@ use Lunetics\LlmCostTrackingBundle\Model\CostSnapshot;
 use Lunetics\LlmCostTrackingBundle\Model\CostSummary;
 use Lunetics\LlmCostTrackingBundle\Model\CostThresholds;
 use Lunetics\LlmCostTrackingBundle\Model\ModelAggregation;
+use Lunetics\LlmCostTrackingBundle\Model\SkippedCall;
 use Lunetics\LlmCostTrackingBundle\Service\CostTrackerInterface;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -31,6 +32,7 @@ final class LlmCostCollectorTest extends TestCase
         self::assertSame([], $collector->getCalls());
         self::assertSame([], $collector->getByModel());
         self::assertSame([], $collector->getUnconfiguredModels());
+        self::assertSame([], $collector->getSkippedCalls());
 
         $totals = $collector->getTotals();
         self::assertSame(0, $totals->calls);
@@ -73,12 +75,14 @@ final class LlmCostCollectorTest extends TestCase
             ),
         ];
         $expectedUnconfigured = ['some-model'];
+        $expectedSkipped = [new SkippedCall('broken-model', \RuntimeException::class, 'boom')];
 
         $snapshot = new CostSnapshot(
             calls: [$expectedCall],
             byModel: $expectedByModel,
             totals: $expectedTotals,
             unconfiguredModels: $expectedUnconfigured,
+            skippedCalls: $expectedSkipped,
         );
 
         $costTracker = $this->createMock(CostTrackerInterface::class);
@@ -91,6 +95,7 @@ final class LlmCostCollectorTest extends TestCase
         self::assertSame($expectedTotals, $collector->getTotals());
         self::assertSame($expectedByModel, $collector->getByModel());
         self::assertSame($expectedUnconfigured, $collector->getUnconfiguredModels());
+        self::assertSame($expectedSkipped, $collector->getSkippedCalls());
     }
 
     #[Test]
@@ -142,6 +147,7 @@ final class LlmCostCollectorTest extends TestCase
                 byModel: [],
                 totals: new CostSummary(0, 0, 0, 0, 0.0),
                 unconfiguredModels: [],
+                skippedCalls: [],
             ));
         }
 

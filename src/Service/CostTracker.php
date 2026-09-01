@@ -9,6 +9,7 @@ use Lunetics\LlmCostTrackingBundle\Model\CostSnapshot;
 use Lunetics\LlmCostTrackingBundle\Model\CostSummary;
 use Lunetics\LlmCostTrackingBundle\Model\ModelAggregation;
 use Lunetics\LlmCostTrackingBundle\Model\ModelRegistryInterface;
+use Lunetics\LlmCostTrackingBundle\Model\SkippedCall;
 use Psr\Log\LoggerInterface;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\TokenUsage\TokenUsageInterface;
@@ -52,6 +53,11 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
         return $this->compute()->unconfiguredModels;
     }
 
+    public function getSkippedCalls(): array
+    {
+        return $this->compute()->skippedCalls;
+    }
+
     public function getSnapshot(): CostSnapshot
     {
         return $this->compute();
@@ -71,6 +77,7 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
         $calls = [];
         $byModel = [];
         $unconfiguredModels = [];
+        $skippedCalls = [];
         $totalCalls = 0;
         $totalInputTokens = 0;
         $totalOutputTokens = 0;
@@ -126,14 +133,43 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
                     // the profiler panel or kernel.terminate cost logging; log the
                     // skip instead, so a systematically throwing extension point does
                     // not silently present as "no LLM calls were made".
+                    // Model resolution and the log call are INDEPENDENT best-effort
+                    // guards, not one shared try: a throwing logger (already
+                    // regression-tested) must not also suppress the SkippedCall
+                    // record below it. A shared guard would leave both
+                    // totals.calls and skippedCalls empty on that path, and the
+                    // panel's widened empty-state check would render "No LLM
+                    // calls were made" for a request that made and lost a call —
+                    // exactly the case this feature exists to surface. The
+                    // SkippedCall construction itself needs no guard (see below).
+                    $skippedModel = null;
+                    try {
+                        $skippedModel = $this->resolveModelName($call['model']);
+                    } catch (\Throwable) {
+                        // Falls back to null; the skip is still recorded below. A
+                        // Model subclass overriding getName() is the one realistic
+                        // trigger (Model is not final).
+                    }
+
+                    // No guard needed here: SkippedCall's constructor has no
+                    // validation, $e::class is always a string, and
+                    // Throwable::getMessage() is declared final — none of these
+                    // can throw.
+                    $skippedCalls[] = new SkippedCall(
+                        model: $skippedModel,
+                        exceptionClass: $e::class,
+                        exceptionMessage: $e->getMessage(),
+                    );
+
                     try {
                         $this->logger?->warning('Skipped an LLM call in cost tracking; a per-call computation step threw.', [
                             'exception' => $e,
-                            'model' => $this->resolveModelName($call['model']),
+                            'model' => $skippedModel,
                         ]);
                     } catch (\Throwable) {
                         // Logging must never make a skipped call fatal.
                     }
+
                     continue;
                 }
 
@@ -202,6 +238,7 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
                 cost: round($totalCost, 6),
             ),
             unconfiguredModels: array_keys($unconfiguredModels),
+            skippedCalls: $skippedCalls,
         );
     }
 

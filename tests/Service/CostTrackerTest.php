@@ -250,6 +250,92 @@ final class CostTrackerTest extends TestCase
     }
 
     #[Test]
+    public function itTracksSkippedCallsWithExceptionDetails(): void
+    {
+        $platform = $this->createPlatform([
+            $this->createCall('broken-model', new TokenUsage(promptTokens: 1000, completionTokens: 500, totalTokens: 1500)),
+            $this->createCall('gpt-5', new TokenUsage(promptTokens: 2000, completionTokens: 1000, totalTokens: 3000)),
+        ]);
+
+        $registry = new class implements ModelRegistryInterface {
+            public function get(string $modelId): ?ModelDefinition
+            {
+                if ('broken-model' === $modelId) {
+                    throw new \RuntimeException('registry lookup exploded');
+                }
+
+                if ('gpt-5' === $modelId) {
+                    return new ModelDefinition($modelId, 'GPT-5', 'OpenAI', 1.25, 10.00);
+                }
+
+                return null;
+            }
+        };
+
+        $tracker = new CostTracker([$platform], $registry, new CostCalculator());
+
+        $skippedCalls = $tracker->getSkippedCalls();
+        self::assertCount(1, $skippedCalls);
+        self::assertSame('broken-model', $skippedCalls[0]->model);
+        self::assertSame(\RuntimeException::class, $skippedCalls[0]->exceptionClass);
+        self::assertSame('registry lookup exploded', $skippedCalls[0]->exceptionMessage);
+
+        // The working call is unaffected.
+        $totals = $tracker->getTotals();
+        self::assertSame(1, $totals->calls);
+        self::assertCount(1, $tracker->getCalls());
+    }
+
+    #[Test]
+    public function itResolvesTheModelNameForASkippedCallWhenCostCalculationThrows(): void
+    {
+        $platform = $this->createPlatform([
+            $this->createCall('gpt-5', new TokenUsage(promptTokens: 1000, completionTokens: 500, totalTokens: 1500)),
+        ]);
+
+        $registry = new ModelRegistry([
+            'gpt-5' => new ModelDefinition('gpt-5', 'GPT-5', 'OpenAI', 1.25, 10.00),
+        ]);
+
+        $calculator = new class implements CostCalculatorInterface {
+            public function calculateCost(
+                ModelDefinition $model,
+                int $inputTokens,
+                int $outputTokens,
+                int $cachedTokens = 0,
+                int $thinkingTokens = 0,
+            ): float {
+                throw new \RuntimeException('cost calculator exploded');
+            }
+        };
+
+        $tracker = new CostTracker([$platform], $registry, $calculator);
+
+        $skippedCalls = $tracker->getSkippedCalls();
+        self::assertCount(1, $skippedCalls);
+        self::assertSame('gpt-5', $skippedCalls[0]->model);
+        self::assertNotNull($skippedCalls[0]->model);
+    }
+
+    #[Test]
+    public function itClearsSkippedCallsOnReset(): void
+    {
+        $platform = $this->createPlatform([
+            $this->createFailingCall('gpt-5'),
+        ]);
+
+        $tracker = $this->createTracker([$platform]);
+
+        self::assertCount(1, $tracker->getSkippedCalls());
+
+        // Simulate a new request in a long-running runtime
+        $platform->reset();
+        $tracker->reset();
+
+        self::assertSame([], $tracker->getSkippedCalls());
+    }
+
+    #[Test]
     public function itLogsSkippedCallsWhenLoggerIsProvided(): void
     {
         $platform = $this->createPlatform([
@@ -283,6 +369,49 @@ final class CostTrackerTest extends TestCase
         $tracker = new CostTracker([$platform], $registry, new CostCalculator(), $logger);
 
         self::assertSame(0, $tracker->getTotals()->calls);
+
+        // A throwing logger must not also erase the SkippedCall record — the model
+        // resolution, the record, and the log call are independent best-effort
+        // guards. If they shared one guard, both totals.calls AND skippedCalls
+        // would be empty here, and the panel's widened empty-state check would
+        // render "No LLM calls were made" for a request that made and lost a call.
+        $skippedCalls = $tracker->getSkippedCalls();
+        self::assertCount(1, $skippedCalls);
+        self::assertSame('broken-model', $skippedCalls[0]->model);
+        self::assertSame(\RuntimeException::class, $skippedCalls[0]->exceptionClass);
+        self::assertSame('registry lookup exploded', $skippedCalls[0]->exceptionMessage);
+    }
+
+    #[Test]
+    public function itFallsBackToANullModelWhenModelNameResolutionThrows(): void
+    {
+        $this->skipUnlessModelObjectSupported();
+
+        // Model is not final; a Model subclass with a throwing getName() drives
+        // the model-resolution guard's own catch (\Throwable) fallback — the
+        // same throw also triggers the outer skip guard, since resolveModelName()
+        // is called first in the normal (non-catch) path too.
+        $throwingModel = new class('placeholder') extends Model {
+            public function getName(): string
+            {
+                throw new \RuntimeException('getName exploded');
+            }
+        };
+
+        $platform = $this->createPlatformWithModelObject(
+            $throwingModel,
+            new TokenUsage(promptTokens: 1000, completionTokens: 500, totalTokens: 1500),
+        );
+
+        $tracker = $this->createTracker([$platform]);
+
+        self::assertSame(0, $tracker->getTotals()->calls);
+
+        $skippedCalls = $tracker->getSkippedCalls();
+        self::assertCount(1, $skippedCalls);
+        self::assertNull($skippedCalls[0]->model);
+        self::assertSame(\RuntimeException::class, $skippedCalls[0]->exceptionClass);
+        self::assertSame('getName exploded', $skippedCalls[0]->exceptionMessage);
     }
 
     #[Test]
