@@ -383,6 +383,36 @@ final class CostTrackerTest extends TestCase
     }
 
     #[Test]
+    public function itFallsBackToANullModelWhenModelNameResolutionThrows(): void
+    {
+        // Model is not final; a Model subclass with a throwing getName() drives
+        // the model-resolution guard's own catch (\Throwable) fallback — the
+        // same throw also triggers the outer skip guard, since resolveModelName()
+        // is called first in the normal (non-catch) path too.
+        $throwingModel = new class('placeholder') extends Model {
+            public function getName(): string
+            {
+                throw new \RuntimeException('getName exploded');
+            }
+        };
+
+        $platform = $this->createPlatformWithModelObject(
+            $throwingModel,
+            new TokenUsage(promptTokens: 1000, completionTokens: 500, totalTokens: 1500),
+        );
+
+        $tracker = $this->createTracker([$platform]);
+
+        self::assertSame(0, $tracker->getTotals()->calls);
+
+        $skippedCalls = $tracker->getSkippedCalls();
+        self::assertCount(1, $skippedCalls);
+        self::assertNull($skippedCalls[0]->model);
+        self::assertSame(\RuntimeException::class, $skippedCalls[0]->exceptionClass);
+        self::assertSame('getName exploded', $skippedCalls[0]->exceptionMessage);
+    }
+
+    #[Test]
     public function itCalculatesCostWithThinkingAndCachedTokens(): void
     {
         // claude-sonnet-4-6: input=3.00, output=15.00, cached=0.30, thinking=15.00

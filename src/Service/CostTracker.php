@@ -133,32 +133,33 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
                     // the profiler panel or kernel.terminate cost logging; log the
                     // skip instead, so a systematically throwing extension point does
                     // not silently present as "no LLM calls were made".
-                    // Three INDEPENDENT best-effort guards, not one shared try: model
-                    // resolution, the SkippedCall record, and the log line must each
-                    // survive the others failing. A shared guard would let a throwing
-                    // logger (already regression-tested) also swallow the
-                    // SkippedCall record for that call — with both totals.calls and
-                    // skippedCalls then empty, the panel's widened empty-state check
-                    // renders "No LLM calls were made" for a request that made and
-                    // lost a call, exactly the case this feature exists to surface.
+                    // Model resolution and the log call are INDEPENDENT best-effort
+                    // guards, not one shared try: a throwing logger (already
+                    // regression-tested) must not also suppress the SkippedCall
+                    // record below it. A shared guard would leave both
+                    // totals.calls and skippedCalls empty on that path, and the
+                    // panel's widened empty-state check would render "No LLM
+                    // calls were made" for a request that made and lost a call —
+                    // exactly the case this feature exists to surface. The
+                    // SkippedCall construction itself needs no guard (see below).
                     $skippedModel = null;
                     try {
                         $skippedModel = $this->resolveModelName($call['model']);
                     } catch (\Throwable) {
-                        // Falls back to null; the skip is still recorded below.
+                        // Falls back to null; the skip is still recorded below. A
+                        // Model subclass overriding getName() is the one realistic
+                        // trigger (Model is not final).
                     }
 
-                    try {
-                        $skippedCalls[] = new SkippedCall(
-                            model: $skippedModel,
-                            exceptionClass: $e::class,
-                            exceptionMessage: $e->getMessage(),
-                        );
-                    } catch (\Throwable) {
-                        // Recording diagnostics about a skip must never itself make
-                        // the skip fatal — $e->getMessage() is Throwable-typed as
-                        // string but a subclass could still override it and throw.
-                    }
+                    // No guard needed here: SkippedCall's constructor has no
+                    // validation, $e::class is always a string, and
+                    // Throwable::getMessage() is declared final — none of these
+                    // can throw.
+                    $skippedCalls[] = new SkippedCall(
+                        model: $skippedModel,
+                        exceptionClass: $e::class,
+                        exceptionMessage: $e->getMessage(),
+                    );
 
                     try {
                         $this->logger?->warning('Skipped an LLM call in cost tracking; a per-call computation step threw.', [
