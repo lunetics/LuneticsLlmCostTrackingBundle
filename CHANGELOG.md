@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-01
+
 ### Added
 - **Skipped-calls notice in the Profiler panel.** Calls that `CostTracker` skips because a per-call
   computation step threw (see the `v0.5.0` fix below) previously vanished from the profiler
@@ -148,7 +150,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `lunetics:llm:update-pricing` console command
 - Readonly DTOs: `CostSnapshot`, `CostSummary`, `ModelAggregation`, `CallRecord`
 
-[Unreleased]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/lunetics/llm-cost-tracking-bundle/compare/v0.2.1...v0.3.0
