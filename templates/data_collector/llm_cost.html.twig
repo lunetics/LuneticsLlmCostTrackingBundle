@@ -6,7 +6,7 @@
     {% set budgetWarning = collector.budgetWarning %}
     {% set overBudget = budgetWarning is not null and totals.cost > budgetWarning %}
 
-    {% if totals.calls > 0 %}
+    {% if totals.calls > 0 or collector.skippedCalls|length > 0 %}
         {% set icon %}
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="12" y1="1" x2="12" y2="23"></line>
@@ -14,7 +14,7 @@
             </svg>
             <span class="sf-toolbar-value">${{ '%0.4f'|format(totals.cost) }}</span>
             <span class="sf-toolbar-info-piece-additional-detail">
-                <span class="sf-toolbar-label">{{ totals.calls }} call{{ totals.calls != 1 ? 's' }}</span>
+                <span class="sf-toolbar-label">{{ totals.calls }} call{{ totals.calls != 1 ? 's' }}{{ collector.skippedCalls|length > 0 ? ', ' ~ collector.skippedCalls|length ~ ' skipped' }}</span>
             </span>
         {% endset %}
 
@@ -33,6 +33,12 @@
                 <b>Calls</b>
                 <span>{{ totals.calls }}</span>
             </div>
+            {% if collector.skippedCalls|length > 0 %}
+                <div class="sf-toolbar-info-piece">
+                    <b>Skipped Calls</b>
+                    <span class="sf-toolbar-status sf-toolbar-status-yellow">{{ collector.skippedCalls|length }}</span>
+                </div>
+            {% endif %}
             <div class="sf-toolbar-info-piece">
                 <b>Input Tokens</b>
                 <span>{{ totals.inputTokens|number_format }}</span>
@@ -50,7 +56,7 @@
             {% endfor %}
         {% endset %}
 
-        {{ include('@WebProfiler/Profiler/toolbar_item.html.twig', { 'link': true, 'status': overBudget ? 'red' : '' }) }}
+        {{ include('@WebProfiler/Profiler/toolbar_item.html.twig', { 'link': true, 'status': overBudget ? 'red' : (totals.calls == 0 and collector.skippedCalls|length > 0 ? 'yellow' : '') }) }}
     {% endif %}
 {% endblock %}
 
@@ -64,7 +70,7 @@
         </span>
         <strong>LLM Costs</strong>
         {% set totals = collector.totals %}
-        <span class="count">{{ totals.calls }}</span>
+        <span class="count">{{ totals.calls }}{{ collector.skippedCalls|length > 0 ? '/' ~ collector.skippedCalls|length ~ ' skipped' }}</span>
     </span>
 {% endblock %}
 
@@ -102,7 +108,7 @@
         {% if collector.skippedCalls|length > 0 %}
             <div class="notice notice-warning">
                 <strong>{{ collector.skippedCalls|length }} call{{ collector.skippedCalls|length != 1 ? 's' }} skipped:</strong>
-                A per-call cost computation step threw for the following calls; they are excluded from the totals above.
+                A per-call cost computation step threw for the following calls; they are excluded from the totals shown below.
                 <ul>
                     {% for skipped in collector.skippedCalls|slice(0, 10) %}
                         <li>{{ skipped.model ?? 'unknown' }} &mdash; {{ skipped.exceptionClass }}: {{ skipped.exceptionMessage }}</li>

@@ -54,6 +54,23 @@ final class LlmCostTemplateTest extends TestCase
 
         self::assertStringContainsString('No LLM calls were made', $html);
         self::assertStringNotContainsString('Per-Model Summary', $html);
+        // Genuinely no calls at all: the toolbar/menu must stay silent too.
+        self::assertStringNotContainsString('sf-toolbar-value', $html);
+    }
+
+    #[Test]
+    public function itRendersTheToolbarIconWhenAllCallsAreSkipped(): void
+    {
+        // The exact case this feature exists for: totals.calls stays 0 (skipped
+        // calls never increment it), but the toolbar must still show an icon —
+        // otherwise the profiler's primary entry point gives zero signal.
+        $html = $this->renderTemplate(
+            totals: new CostSummary(0, 0, 0, 0, 0.0),
+            skippedCalls: [new SkippedCall('broken-model', \RuntimeException::class, 'boom')],
+        );
+
+        self::assertStringContainsString('sf-toolbar-value', $html);
+        self::assertStringContainsString('1 skipped', $html);
     }
 
     #[Test]
