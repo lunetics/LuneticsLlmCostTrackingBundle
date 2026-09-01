@@ -369,6 +369,17 @@ final class CostTrackerTest extends TestCase
         $tracker = new CostTracker([$platform], $registry, new CostCalculator(), $logger);
 
         self::assertSame(0, $tracker->getTotals()->calls);
+
+        // A throwing logger must not also erase the SkippedCall record — the model
+        // resolution, the record, and the log call are independent best-effort
+        // guards. If they shared one guard, both totals.calls AND skippedCalls
+        // would be empty here, and the panel's widened empty-state check would
+        // render "No LLM calls were made" for a request that made and lost a call.
+        $skippedCalls = $tracker->getSkippedCalls();
+        self::assertCount(1, $skippedCalls);
+        self::assertSame('broken-model', $skippedCalls[0]->model);
+        self::assertSame(\RuntimeException::class, $skippedCalls[0]->exceptionClass);
+        self::assertSame('registry lookup exploded', $skippedCalls[0]->exceptionMessage);
     }
 
     #[Test]

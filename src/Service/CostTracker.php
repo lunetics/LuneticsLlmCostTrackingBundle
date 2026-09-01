@@ -133,12 +133,22 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
                     // the profiler panel or kernel.terminate cost logging; log the
                     // skip instead, so a systematically throwing extension point does
                     // not silently present as "no LLM calls were made".
+                    // Three INDEPENDENT best-effort guards, not one shared try: model
+                    // resolution, the SkippedCall record, and the log line must each
+                    // survive the others failing. A shared guard would let a throwing
+                    // logger (already regression-tested) also swallow the
+                    // SkippedCall record for that call — with both totals.calls and
+                    // skippedCalls then empty, the panel's widened empty-state check
+                    // renders "No LLM calls were made" for a request that made and
+                    // lost a call, exactly the case this feature exists to surface.
+                    $skippedModel = null;
                     try {
                         $skippedModel = $this->resolveModelName($call['model']);
-                        $this->logger?->warning('Skipped an LLM call in cost tracking; a per-call computation step threw.', [
-                            'exception' => $e,
-                            'model' => $skippedModel,
-                        ]);
+                    } catch (\Throwable) {
+                        // Falls back to null; the skip is still recorded below.
+                    }
+
+                    try {
                         $skippedCalls[] = new SkippedCall(
                             model: $skippedModel,
                             exceptionClass: $e::class,
@@ -149,6 +159,16 @@ final class CostTracker implements CostTrackerInterface, ResetInterface
                         // the skip fatal — $e->getMessage() is Throwable-typed as
                         // string but a subclass could still override it and throw.
                     }
+
+                    try {
+                        $this->logger?->warning('Skipped an LLM call in cost tracking; a per-call computation step threw.', [
+                            'exception' => $e,
+                            'model' => $skippedModel,
+                        ]);
+                    } catch (\Throwable) {
+                        // Logging must never make a skipped call fatal.
+                    }
+
                     continue;
                 }
 

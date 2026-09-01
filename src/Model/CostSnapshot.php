@@ -17,7 +17,7 @@ final readonly class CostSnapshot
         public array $byModel,
         public CostSummary $totals,
         public array $unconfiguredModels,
-        public array $skippedCalls,
+        public array $skippedCalls = [],
     ) {
     }
 }
