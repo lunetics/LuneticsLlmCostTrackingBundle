@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   but this is mitigated only by the panel's existing `kernel.debug`-only gating, not by any new
   redaction in this bundle.
 
+### Breaking Changes
+- **`CostTrackerInterface`** gains a new required method `getSkippedCalls(): array` (see the
+  skipped-calls feature above). Any custom implementation of this interface must add the method,
+  returning `[]` if it does not track skips. `CostSnapshot`'s constructor stays backward
+  compatible — the new `$skippedCalls` parameter defaults to `[]`.
+
 ## [0.5.0] - 2026-09-01
 
 ### Added
