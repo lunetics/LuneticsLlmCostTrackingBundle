@@ -385,6 +385,8 @@ final class CostTrackerTest extends TestCase
     #[Test]
     public function itFallsBackToANullModelWhenModelNameResolutionThrows(): void
     {
+        $this->skipUnlessModelObjectSupported();
+
         // Model is not final; a Model subclass with a throwing getName() drives
         // the model-resolution guard's own catch (\Throwable) fallback — the
         // same throw also triggers the outer skip guard, since resolveModelName()
